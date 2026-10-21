@@ -129,6 +129,8 @@ describe('BEQ PC selection and all three real programs', () => {
     const after = store().cpu, memory = after.memory
     store().replay(2); store().tick(); store().pause(); store().observe('memory')
     expect(store().cpu).toBe(after); expect(store().cpu.memory).toBe(memory)
+    store().resumePlayback(); store().tick(); store().tick()
+    expect(store().cpu).toBe(after); expect(store().cpu.memory).toBe(memory)
     expect(store().history[2].before.memory[64]).toBe(0)
     expect(store().history[2].after.memory[64]).toBe(42)
     store().reset(); expect(readWord(store().cpu.memory, 64)).toBe(0)

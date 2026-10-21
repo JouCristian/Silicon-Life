@@ -1,57 +1,79 @@
 # 芯生 / Silicon Life
 
-真实 RV32I 单周期 CPU 的三维交互教学网站。Sprint 01 支持 ADDI、ADD，可执行三条指令、观察 Trace，并从线框芯片进入 2.5D 数据通路。
+基于真实 RV32I 单周期架构的三维交互教学网站。Sprint 02 支持 **ADDI、ADD、LW、SW、BEQ**，包含三组真实程序、小端数据内存、RTL 信号快照和连续可逆的芯片展开。
+
+仓库：[JouCristian/Silicon-Life](https://github.com/JouCristian/Silicon-Life)。Sprint 01 已由用户推送到 `main`；Sprint 02 在 `feat/sprint-02` 本地开发，本轮 Push、PR、Merge 均需用户确认。未连接 v0。
 
 ## 本地运行
 
-要求 Node.js 22.12+（开发验证使用 Node 24）与 npm。
+要求 Node.js 22.12+ 与 npm（验证使用 Node 24）。
 
 ```sh
 npm ci
 npm run dev
 ```
 
-打开终端显示的地址，默认 http://127.0.0.1:5173。点击「进入芯片」或芯片模型进入工作台，点击「运行」执行完整程序。「单步指令」每次提交一条指令，再播放同一快照的五个概念观察阶段。
+打开终端地址，默认 http://127.0.0.1:5173。点击「进入芯片」或模型，选择教学程序，再点击「运行」。
+
+| 教学程序 | 真实执行结果 | 提交数 |
+| --- | --- | --- |
+| 第一次加法 | x1=5、x2=7、x3=12、PC=12 | 3 |
+| 内存读写 | M[64]=42、字节 `2a 00 00 00`、x3=42、PC=16 | 4 |
+| 条件分支 | BEQ 成立，跳过写入 99，x3=42、PC=20 | 4（程序 5 条） |
 
 ```asm
+# 内存读写
+addi x1, x0, 64
+addi x2, x0, 42
+sw   x2, 0(x1)
+lw   x3, 0(x1)
+
+# 条件分支
 addi x1, x0, 5
-addi x2, x0, 7
-add  x3, x1, x2
+addi x2, x0, 5
+beq  x1, x2, 8
+addi x3, x0, 99
+addi x3, x0, 42
 ```
 
-最终 x0=0、x1=5、x2=7、x3=12、PC=0x0000000c、已提交 3 条。机器码分别为 `0x00500093`、`0x00700113`、`0x002081b3`。
+## 操作与语义
 
-## 使用
+- 选择程序条目编辑操作数，即时查看 I/R/S/B 型 32 位机器码。应用或切换程序会复位。
+- 寄存器可切有符号十进制 / 十六进制；复位后可设置 x1–x31。x0 恒为 0。
+- 数据内存为 1024 字节，默认清零，小端、按 4 字节对齐访问。面板列出低到高地址的字节，复位清空内存。
+- 「单步指令」提交一个架构边沿，随后讲解同一快照。「暂停 / 暂停讲解」冻结播放，「继续讲解」继续快照，「回放」从取指重新观察。均不重复写回或存储。
+- 五个阶段是教学观察，**不是五个时钟周期或流水线**。脉冲时间依据示意线路长度安排，不代表真实门延迟。
+- 蓝色表示数据、浅金表示控制、青绿色表示写回；来源均为 Core 的 Trace。专业模式显示 RTL 原名信号。
+- 鼠标拖动、滚轮、右键分别旋转、缩放、平移；「恢复视角」连续回到教学位置。首页与工作台共享固定 Canvas，支持反向与中途反转。
+- 尊重 reduced-motion，也响应页面打开后偏好的改变；简化动画后仍可执行所有程序。
+- 连续执行上限 1000 条。未对齐访存或成立分支的未对齐目标会停止，错误指令不部分提交。内存越界是宿主检查，不冒充 RTL Trap。
 
-- 选中程序条目，修改 ADDI/ADD、源/目标寄存器及立即数，实时查看 32 位编码。应用后复位。
-- 寄存器区可切十进制有符号 / 十六进制，复位后可设置初始 x1–x31。x0 恒为 0。
-- 拖动旋转、滚轮缩放、右键平移，「恢复视角」回到教学视角。
-- 观察阶段按钮、暂停与回放只操作 Trace；不会重新写回。架构状态面板始终显示真实已提交结果。
-- 演示模式解释阶段，专业模式增加对应 RTL 的真实信号快照。
-- 连续执行最多 1000 条；程序越界、故障或达到上限停止。
-
-## 检查与构建
+## 验证与构建
 
 ```sh
 npm run typecheck
 npm test
 npm run build
+npx playwright install chromium
+npm run test:e2e
 npm run preview
 ```
 
-浏览器端验收：
+本机浏览器安装在项目内，验收前使用：
 
-```sh
-npx playwright install chromium
+```powershell
+$env:PLAYWRIGHT_BROWSERS_PATH = "$PWD/.local/browsers"
 npm run test:e2e
 ```
 
-生产输出为 `dist/`，可部署到 Vercel 静态托管或 Linux Nginx。当前未发布、未 Push。默认托管在域名根路径；部署子路径时配置 Vite `base`。
+E2E 保存首帧、中段、结束、反向截图及逐帧 JSON 到 `.local/`。帧检查验证连续性和状态边界，不能替代真实设备的视觉与性能评审。完整记录见 [VALIDATION](docs/VALIDATION.md)。
 
-## 工程与协作
+生产输出为 `dist/`，可部署到 Vercel 静态托管或 Linux Nginx。默认域名根路径；子路径托管需配置 Vite `base`。本轮未部署。CI 已配置，本轮分支尚未推送，因此未运行本轮 GitHub Actions。
 
-`src/core/` 是无框架 CPU 与 Trace 契约；`src/stores/` 是执行和播放协调；`src/scenes/` 是 Three.js；`src/components/`、`src/styles/` 是 UI。完整映射见 [RTL_MAPPING](docs/RTL_MAPPING.md)，协作边界见 [AGENTS](AGENTS.md) 与 [V0_COLLAB](docs/V0_COLLAB.md)，AI 贡献见 [AI_USAGE_LOG](docs/AI_USAGE_LOG.md)。
+## 工程边界
 
-用户提供的 `rtl/` 与 `package/` 只读并被 Git 忽略，不影响独立启动。当前只读取 RTL，无 Testbench，未进行 RTL 联合仿真。LW/SW/BEQ 仅保留类型接口，其他 RV32I 指令尚不支持。首轮不含完整手册、流水线或聊天系统。
+CPU Core 无框架依赖；Store 协调提交和播放；`src/motion/` 统一时间、弹簧、传播调度；场景拓扑在 `src/scenes/topology.ts`。协作见 [AGENTS](AGENTS.md)、[V0_COLLAB](docs/V0_COLLAB.md)，信号依据见 [RTL_MAPPING](docs/RTL_MAPPING.md)，贡献见 [AI_USAGE_LOG](docs/AI_USAGE_LOG.md)。
 
-若本机 npm 镜像缓存损坏，可使用项目内缓存重试：`npm ci --registry=https://registry.npmjs.org --cache .local/npm-cache`，无需修改全局配置。
+`rtl/`、`package/` 保持只读且不进入 Web 仓库。无 Testbench，未完成 RTL 联合仿真；不声称完整 RV32I、完整 Trap、CSR 或外部 FPGA 等价。没有后端、持久化、流水线和聊天系统。Three 共享包仍较大，构建会提示体积警告。
+
+如本机镜像缓存冲突，可用 `npm ci --registry=https://registry.npmjs.org --cache .local/npm-cache`，无需修改全局配置。

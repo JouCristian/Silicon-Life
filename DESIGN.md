@@ -6,7 +6,7 @@
 
 ## Theme
 
-`src/styles/global.css` 定义 OKLCH 背景、面板、边线、文本、次要文本与强调色。Three.js 使用相应 sRGB 颜色。色彩策略 Restrained，蓝色限于操作、活动路径、状态。
+`src/styles/global.css` 定义 OKLCH 背景、面板、边线、文本、次要文本与强调色。Three.js 使用相应 sRGB 颜色。色彩策略 Restrained：蓝色表示数据、浅金表示控制、青绿色表示写回；非活动连接保持灰色。面板与场景增加黑灰层次，次要文字提高亮度。
 
 ## Typography
 
@@ -18,8 +18,12 @@
 
 ## Components and motion
 
-操作按钮 5px 圆角，输入 4px，原生 select 与数字输入，明确键盘焦点。运行与单步状态禁用防止重复提交。芯片四片盖板与 CPU 平面使用同一 Canvas 连续转场；阻尼弹簧控制空间位移。Motion 负责轻量 UI 状态出现，尊重 reduced-motion。
+操作按钮 5px 圆角，输入 4px，原生 select 与数字输入，明确键盘焦点。运行与单步状态禁用防止重复提交。Sprint 02 的固定全视口 Canvas 保持生命周期，HTML 的空矩形提供目标锚点；view offset、相机、模型尺度与盖板使用连续运动。解析临界阻尼在不同帧率下保持一致，不清空反向时的速度。
+
+Motion 负责 opacity / translate、按因果错峰、退出后卸载与 inert；焦点移入新场景。配置统一在 `src/motion/design.ts`，一般进入 320ms、退出 180ms、错峰 65ms。尊重并订阅动态 reduced-motion 偏好。
+
+数据流使用真实 Trace 的传输组和实际连线的局部光段。按弧长安排 180–650ms 单段运动，发送端先激活，接收端到达后进行不超过 0.055 世界单位的抬升与低亮度响应。暂停冻结播放时钟，阶段检查展示静态末端，回放不触发执行。首页只有缓慢呼吸、少量中性光点与 OrbitControls 惯性，不使用 Bloom 或大量粒子。
 
 ## Limitations
 
-极窄屏三维标签较小，旋转放大或使用 HTML 面板观察。当前无完整可访问性审计；所有架构状态都可从 HTML 中读取。
+极窄屏三维标签较小，旋转放大或使用 HTML 面板观察。DPR 限制 1.5；固定 Canvas 绘制区域扩大，需要真实移动 GPU 进一步验证。当前无完整可访问性审计；所有架构状态都可从 HTML 中读取。逐帧测试用于验证坐标连续与状态边界，不替代真实设备视觉评审。

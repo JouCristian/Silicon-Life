@@ -22,7 +22,7 @@ export function transfersFor(instruction: Instruction, signals: SignalSnapshot):
     add(instruction.op === 'ADD' ? 'rs2_data' : 'imm', 'execute', instruction.op === 'ADD' ? 'regfile' : 'imm', 'mux', 'alu_b', 0)
     add('alu_b', 'execute', 'mux', 'alu', 'alu_b', 1)
     if (mem) {
-      add('mem_control', 'memory', 'decoder', 'dmem', instruction.op === 'LW' ? 'mem_read' : 'dmem_we', 0, 'control')
+      add('mem_control', 'memory', 'decoder', 'dmem', instruction.op === 'LW' ? 'mem_read' : 'mem_write', 0, 'control')
       add('dmem_addr', 'memory', 'alu', 'dmem', 'dmem_addr', 0)
       if (instruction.op === 'SW') add('dmem_wdata', 'memory', 'regfile', 'dmem', 'dmem_wdata', 0)
       else add('dmem_rdata', 'memory', 'dmem', 'wb', 'load_data', 1)

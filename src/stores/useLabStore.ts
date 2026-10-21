@@ -12,6 +12,8 @@ interface LabStore {
   history: readonly ExecutionTrace[]
   traceIndex: number
   phase: Phase
+  playbackEpoch: number
+  inspection: boolean
   playing: boolean
   running: boolean
   runSteps: number
@@ -25,6 +27,7 @@ interface LabStore {
   tick: () => void
   observe: (phase: Phase) => void
   replay: (index: number) => void
+  resumePlayback: () => void
   updateInstruction: (index: number, instruction: Instruction) => void
   setInitialRegister: (index: number, value: number) => void
   setMode: (mode: 'demo' | 'pro') => void
@@ -35,7 +38,7 @@ interface LabStore {
 
 export const useLabStore = create<LabStore>((set, get) => ({
   cpu: initialState(), program: DEMO_WORDS, programId: 'arithmetic', history: [], traceIndex: -1,
-  phase: 'fetch', playing: false, running: false, runSteps: 0,
+  phase: 'fetch', playbackEpoch: 0, inspection: false, playing: false, running: false, runSteps: 0,
   mode: 'demo', scene: 'chip', viewVersion: 0,
   step: () => {
     const s = get()
@@ -46,21 +49,21 @@ export const useLabStore = create<LabStore>((set, get) => ({
     }
     const result = execute(s.cpu, s.program)
     set({ cpu: result.state, ...(result.trace ? { history: [...s.history, result.trace], traceIndex: s.history.length,
-      phase: 'fetch', playing: true, runSteps: s.runSteps + 1 } : { running: false }) })
+      phase: 'fetch', playing: true, inspection: false, playbackEpoch: s.playbackEpoch + 1, runSteps: s.runSteps + 1 } : { running: false }) })
   },
   run: () => {
     const s = get()
     const pending = s.history[s.traceIndex]
     // Resume a paused latest snapshot before executing another architectural edge.
     if (!s.playing && pending?.after === s.cpu && s.phase !== 'writeback') {
-      set({ running: s.cpu.status === 'ready', playing: true })
+      set({ running: s.cpu.status === 'ready', playing: true, ...(s.inspection ? { inspection: false, playbackEpoch: s.playbackEpoch + 1 } : {}) })
     } else if (s.cpu.status === 'ready') {
       set({ running: true })
       if (!s.playing) get().step()
     }
   },
   pause: () => set({ running: false, playing: false }),
-  reset: () => set({ cpu: initialState(), history: [], traceIndex: -1, phase: 'fetch', playing: false, running: false, runSteps: 0 }),
+  reset: () => set(s => ({ cpu: initialState(), history: [], traceIndex: -1, phase: 'fetch', inspection: false, playbackEpoch: s.playbackEpoch + 1, playing: false, running: false, runSteps: 0 })),
   loadProgram: id => {
     const preset = PROGRAMS.find(p => p.id === id)
     if (!preset) throw new Error('未知教学程序')
@@ -71,23 +74,27 @@ export const useLabStore = create<LabStore>((set, get) => ({
     const s = get()
     if (!s.playing) return
     const index = PHASES.indexOf(s.phase)
-    if (index < PHASES.length - 1) set({ phase: PHASES[index + 1] })
+    if (index < PHASES.length - 1) set({ phase: PHASES[index + 1], playbackEpoch: s.playbackEpoch + 1, inspection: false })
     else {
       set({ playing: false })
       if (s.running && s.cpu.status === 'ready') get().step()
       else set({ running: false })
     }
   },
-  observe: phase => set({ phase, playing: false, running: false }),
+  observe: phase => set(s => ({ phase, playing: false, running: false, inspection: true, playbackEpoch: s.playbackEpoch + 1 })),
   replay: index => {
-    if (get().history[index]) set({ traceIndex: index, phase: 'fetch', playing: true, running: false })
+    if (get().history[index]) set(s => ({ traceIndex: index, phase: 'fetch', playing: true, running: false, inspection: false, playbackEpoch: s.playbackEpoch + 1 }))
+  },
+  resumePlayback: () => {
+    const s = get()
+    if (s.history[s.traceIndex]) set({ playing: true, running: false, ...(s.inspection || s.phase === 'writeback' ? { inspection: false, playbackEpoch: s.playbackEpoch + 1 } : {}) })
   },
   updateInstruction: (index, instruction) => {
     const word = encode(instruction)
     if (!Number.isInteger(index) || index < 0 || index >= get().program.length) throw new Error('程序索引无效')
     const program = [...get().program]
     program[index] = word
-    set({ program, cpu: initialState(), history: [], traceIndex: -1, phase: 'fetch', playing: false, running: false, runSteps: 0 })
+    set(s => ({ program, cpu: initialState(), history: [], traceIndex: -1, phase: 'fetch', playing: false, running: false, runSteps: 0, inspection: false, playbackEpoch: s.playbackEpoch + 1 }))
   },
   setInitialRegister: (index, value) => {
     if (get().cpu.retired !== 0 || get().running || get().playing) throw new Error('请先复位，再设置初始寄存器')

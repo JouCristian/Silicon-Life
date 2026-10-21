@@ -30,7 +30,11 @@ E2E 首次需要 `npx playwright install chromium`，或通过本机可用浏览
 
 ## Git / v0
 
-GitHub 建立后是唯一代码事实来源。使用 `feat/*`、`fix/*` 独立分支和 PR；两个 AI 不在同一分支同时修改。v0 只能在已划定 UI 范围协作。合并前查看受保护目录差异，并通过全部必需检查。详见 `docs/V0_COLLAB.md`。
+GitHub 仓库已建立（JouCristian/Silicon-Life），是唯一代码事实来源。使用 `feat/*`、`fix/*` 独立分支和 PR；两个 AI 不在同一分支同时修改。Sprint 02 用户要求 Push、PR、Merge 前先确认。v0 只能在已划定 UI 范围协作。合并前查看受保护目录差异，并通过全部必需检查。详见 `docs/V0_COLLAB.md`。
+
+## 动效边界
+
+`src/motion/` 统一弹簧、传播时间线和播放时钟。它可读取 Trace 与场景几何，不能计算或改写 CPU 结果。不要让连续动画逐帧触发整个 Zustand / React 树重渲染。保留固定 Canvas、独立 HTML label portal、空间锚点与退出动画；Drei Html 投影必须在场景矩阵更新之后。验证正向、反向、中途反转与暂停，不仅看静态图。Core 的 transfer 顺序契约变更需同步映射与测试。
 
 ## 设计
 

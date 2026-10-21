@@ -11,7 +11,7 @@ function RegisterSelect({ label, value, onChange }: { label: string; value: numb
 export function InstructionEditor({ index }: { index: number }) {
   const { program, updateInstruction } = useLabView()
   const [draft, setDraft] = useState<Instruction>(() => decode(program[index]))
-  const [immText, setImmText] = useState(() => draft.op === 'ADDI' ? String(draft.imm) : '0')
+  const [immText, setImmText] = useState(() => 'imm' in draft ? String(draft.imm) : '0')
   const [saved, setSaved] = useState(false)
   const instruction: Instruction = 'imm' in draft ? { ...draft, imm: immText.trim() === '' ? NaN : Number(immText) } : draft
   let error = '', word = 0
@@ -34,6 +34,6 @@ export function InstructionEditor({ index }: { index: number }) {
     <code className="binary-code" aria-label="32 位机器码">{error ? '请修正指令参数' : binary(word).match(/.{4}/g)?.join(' ')}</code>
     {error && <p role="alert" className="error">{error}</p>}
     <button className="button subtle full" disabled={!!error} onClick={() => { updateInstruction(index, instruction); setSaved(true) }}>应用到程序并复位</button>
-    <p className="field-help" role="status">{saved ? `已应用 ${assembly(instruction)}` : '应用后清空执行记录，寄存器恢复为 0。'}</p>
+    <p className="field-help" role="status">{saved ? `已应用 ${assembly(instruction)}` : '应用后清空执行记录、寄存器与数据内存。'}</p>
   </section>
 }

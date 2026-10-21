@@ -31,7 +31,7 @@ test('real program, trace replay, register edits and responsive workbench', asyn
   await page.getByRole('button', { name: '应用到程序并复位' }).click()
   await page.getByRole('button', { name: '单步指令' }).click()
   await expect(page.getByTestId('register-1').locator('code')).toHaveText('9')
-  await page.getByRole('button', { name: '暂停', exact: false }).click()
+  await page.getByRole('button', { name: '暂停', exact: true }).click()
   await page.getByRole('button', { name: '复位 CPU' }).click()
   await page.getByText('设置初始寄存器', { exact: true }).click()
   await page.getByLabel('寄存器初始值').fill('0xffffffff')
@@ -60,10 +60,9 @@ test('chip mesh opens the same scene, with reduced motion and repeated navigatio
   await page.goto('/')
   await expect(page.getByText('RV32I / SILICON LIFE', { exact: true })).toBeVisible()
   // Projected center of the chip; its HTML mark passes pointers through to the mesh.
-  const canvas = page.locator('canvas')
-  const box = await canvas.boundingBox()
+  const box = await page.locator('.die-mark').boundingBox()
   expect(box).not.toBeNull()
-  await canvas.click({ position: { x: box!.width / 2, y: box!.height / 2 } })
+  await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2)
   await expect(page.getByRole('heading', { name: '让指令，走一遍。' })).toBeVisible()
   await expect(page.getByText('Register File', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: '运行', exact: true }).click()
@@ -95,7 +94,7 @@ test('all three programs execute real arithmetic, memory and branch paths', asyn
       await expect(page.getByTestId('memory-64').locator('code')).toHaveText('42')
       await expect(page.getByTestId('memory-64').locator('small')).toHaveText('2a 00 00 00')
       await page.getByLabel('执行记录').selectOption('2')
-      await page.getByRole('button', { name: '04 访存 可跳过' }).click()
+      await page.getByRole('button', { name: '04 访存 Store' }).click()
       await expect(page.getByTestId('memory-64').locator('code')).toHaveText('42')
       await page.screenshot({ path: '.local/sprint02-memory-a.png', fullPage: true })
     }
@@ -104,6 +103,9 @@ test('all three programs execute real arithmetic, memory and branch paths', asyn
       await page.getByLabel('执行记录').selectOption('2')
       await page.getByRole('button', { name: '03 执行 Compute' }).click()
       await expect(page.locator('.phase-description')).toContainText('分支成立')
+      await page.locator('.program-list li').nth(2).getByRole('button').click()
+      await expect(page.getByLabel('立即数', { exact: true })).toHaveValue('8')
+      await expect(page.locator('.encoding code')).toHaveText('0x00208463')
       await page.screenshot({ path: '.local/sprint02-branch-a.png', fullPage: true })
     }
   }

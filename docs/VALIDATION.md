@@ -2,7 +2,13 @@
 
 ## Sprint 02.1 本地验收（2026-10-22）
 
-沿用 feat/sprint-02，起点 3d7ed59；PR #1 查询为 open、未合并、base main。用户明确要求本轮不 Push / Merge / 部署；远程 PR 与 Actions 仍对应 Sprint 02，不代表当前本地修订。
+沿用 feat/sprint-02，起点 3d7ed59；PR #1 查询为 open、未合并、base main。本地开发阶段按用户要求不 Push / Merge / 部署；后续正常推送与 CI 修复已另获授权，详见下节。
+
+### 用户授权后的远程 CI 修复
+
+用户随后授权推送 a9b4e2d 并更新已有 PR #1，继续禁止 Merge / 部署。首次 [PR Actions #39654170266](https://github.com/JouCristian/Silicon-Life/actions/runs/39654170266) 的类型检查、53 项单元测试、构建及 8 条 E2E 通过；传递终点冻结检查失败：HTML 驱动已停在真实组末 0.71 秒，而 Three.js 采样属性仍为上一渲染帧 0.4401 秒，随后绘制终点导致比较失败。
+
+修复只增加可观测的 playback epoch、playing 与实际调度终点属性，让 E2E 先确认对应播放轮次和暂停状态已绘制；完成时先要求渲染值到达实际调度终点，再严格比较其后 300ms 的冻结值。保留原有等值冻结、架构状态与 CPU 基准，不增加重试或放宽阈值。没有改动 CPU Core、播放语义、RTL 或 src/tests/ 的正确性期望。最新远程执行结果以 PR 对应提交的 Checks 为准。
 
 ### 新增覆盖
 

@@ -27,7 +27,7 @@ function IdlePulse({ visible, reduced }: { visible: boolean; reduced: boolean })
 }
 
 function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef: Anchor }) {
-  const { scene, enter, trace, phase, viewVersion, cpu, playbackEpoch, inspection } = useLabView()
+  const { scene, enter, trace, phase, viewVersion, cpu, playbackEpoch, inspection, playing } = useLabView()
   const reduced = useMotionPreference()
   const { camera, size } = useThree()
   const spatial = useRef<Group>(null), model = useRef<Group>(null), board = useRef<Group>(null), cover = useRef<Group>(null)
@@ -112,6 +112,8 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
       if (rect) root.style.clipPath = `inset(${Math.max(0, rect.top)}px ${Math.max(0, size.width - rect.right)}px ${Math.max(0, size.height - rect.bottom)}px ${Math.max(0, rect.left)}px)`
       const flowTime = presentationClock.read(playbackEpoch, inspection, timeline.duration)
       root.dataset.flowTime = flowTime.toFixed(4)
+      root.dataset.playbackEpoch = String(playbackEpoch)
+      root.dataset.flowPlaying = String(playing)
       root.dataset.flowRoutes = timeline.transfers.map(route => `${route.id}:${Math.max(0, Math.min(1, (flowTime - route.start) / (route.end - route.start))).toFixed(3)}`).join(',')
     }
     if (model.current) { model.current.position.z = reduced ? 0 : Math.sin(clock.elapsedTime * .65) * .09 * (1 - t); model.current.rotation.z = reduced ? 0 : Math.sin(clock.elapsedTime * .19) * .012 * (1 - t) }

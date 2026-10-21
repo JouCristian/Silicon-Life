@@ -7,7 +7,7 @@ test('real program, trace replay, register edits and responsive workbench', asyn
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()) })
   await page.goto('/')
   await expect(page.getByRole('heading', { name: '一条指令， 看见芯片的思考。' })).toBeVisible()
-  await expect(page.getByText('RV32I / SILICON LIFE', { exact: true })).toBeVisible()
+  await expect(page.getByText('RV32I / SILICON LIFE', { exact: true })).toBeVisible({ timeout: 20000 })
   await page.screenshot({ path: '.local/home.png' })
   await page.getByRole('button', { name: '进入芯片' }).click()
   await expect(page.getByText('Register File', { exact: true })).toBeVisible({ timeout: 20000 })
@@ -73,5 +73,39 @@ test('chip mesh opens the same scene, with reduced motion and repeated navigatio
   await page.getByRole('button', { name: 'CPU 工作台', exact: true }).click()
   await expect(page.getByText('Register File', { exact: true })).toBeVisible()
   await expect(page.getByTestId('register-3').locator('code')).toHaveText('12')
+  expect(errors).toEqual([])
+})
+
+test('all three programs execute real arithmetic, memory and branch paths', async ({ page }) => {
+  test.setTimeout(90000)
+  const errors: string[] = []
+  page.on('pageerror', error => errors.push(error.message))
+  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()) })
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/')
+  await page.getByRole('button', { name: '进入芯片' }).click()
+  await expect(page.getByText('Data Memory', { exact: true })).toBeVisible({ timeout: 20000 })
+  for (const [id, expected, pc] of [['arithmetic', '12', '0x0000000c'], ['memory', '42', '0x00000010'], ['branch', '42', '0x00000014']]) {
+    await page.getByLabel('教学程序').selectOption(id)
+    await page.getByRole('button', { name: '运行', exact: true }).click()
+    await expect(page.getByTestId('register-3').locator('code')).toHaveText(expected, { timeout: 15000 })
+    await expect(page.getByTestId('pc')).toHaveText(pc)
+    await expect(page.getByRole('button', { name: '运行', exact: true })).toBeDisabled()
+    if (id === 'memory') {
+      await expect(page.getByTestId('memory-64').locator('code')).toHaveText('42')
+      await expect(page.getByTestId('memory-64').locator('small')).toHaveText('2a 00 00 00')
+      await page.getByLabel('执行记录').selectOption('2')
+      await page.getByRole('button', { name: '04 访存 可跳过' }).click()
+      await expect(page.getByTestId('memory-64').locator('code')).toHaveText('42')
+      await page.screenshot({ path: '.local/sprint02-memory-a.png', fullPage: true })
+    }
+    if (id === 'branch') {
+      await expect(page.locator('.program-list li').nth(3)).not.toContainText('✓')
+      await page.getByLabel('执行记录').selectOption('2')
+      await page.getByRole('button', { name: '03 执行 Compute' }).click()
+      await expect(page.locator('.phase-description')).toContainText('分支成立')
+      await page.screenshot({ path: '.local/sprint02-branch-a.png', fullPage: true })
+    }
+  }
   expect(errors).toEqual([])
 })

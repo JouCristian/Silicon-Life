@@ -3,13 +3,15 @@ import { motion, useReducedMotion } from 'motion/react'
 import { assembly, decode, hex } from './core/isa'
 import { InstructionEditor } from './components/InstructionEditor'
 import { RegisterPanel } from './components/RegisterPanel'
+import { MemoryPanel } from './components/MemoryPanel'
+import { PROGRAMS } from './data/programs'
 import { TracePanel } from './components/TracePanel'
 import { useLabStore, useLabView } from './stores/useLabStore'
 
 const CpuScene = lazy(() => import('./scenes/CpuScene'))
 
 export default function App() {
-  const { cpu, program, scene, mode, setMode, enter, home, step, run, pause, reset, resetView, running, playing, trace, phase } = useLabView()
+  const { cpu, program, programId, loadProgram, history, scene, mode, setMode, enter, home, step, run, pause, reset, resetView, running, playing, trace, phase } = useLabView()
   const [selected, setSelected] = useState(0)
   const reduced = useReducedMotion()
   useEffect(() => {
@@ -17,6 +19,7 @@ export default function App() {
     return () => window.clearInterval(timer)
   }, [reduced])
   const open = scene === 'workbench'
+  const preset = PROGRAMS.find(p => p.id === programId) ?? PROGRAMS[0]
   const current = program[cpu.pc / 4]
   const status = playing ? '正在讲解' : running ? '运行中' : cpu.status === 'halted' ? '程序完成' : cpu.status === 'fault' ? '执行停止' : '就绪'
   return <div className={`app ${open ? 'is-workbench' : 'is-home'}`}>
@@ -33,10 +36,12 @@ export default function App() {
 
       <div className="lab-layout">
         {open && <aside className="program-panel">
-          <div className="section-title"><h2>程序</h2><span>3 条指令</span></div><p className="program-name">第一次加法<span>ADDI → ADD</span></p>
-          <ol className="program-list">{program.map((word, index) => <li key={index} className={`${cpu.pc === index * 4 ? 'next-instruction' : ''} ${trace?.before.pc === index * 4 ? 'last-instruction' : ''}`}><button onClick={() => setSelected(index)} aria-pressed={selected === index}><span className="line-number">{String(index + 1).padStart(2, '0')}</span><span><code>{assembly(decode(word))}</code><small>{hex(index * 4)}<span>{hex(word)}</span></small></span><span className="line-state">{cpu.retired > index ? '✓' : cpu.pc === index * 4 ? '←' : ''}</span></button></li>)}</ol>
-          <InstructionEditor key={selected} index={selected} />
-          <div className="sample-goal"><span>示例目标</span><p>x1 = 5 <span>+</span> x2 = 7</p><strong>x3 = 12</strong></div>
+          <div className="section-title"><h2>程序</h2><span>{program.length} 条指令</span></div>
+          <select aria-label="教学程序" value={programId} onChange={e => { setSelected(0); loadProgram(e.target.value) }}>{PROGRAMS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+          <p className="program-name"><span>{preset.summary}</span></p>
+          <ol className="program-list">{program.map((word, index) => <li key={index} className={`${cpu.pc === index * 4 ? 'next-instruction' : ''} ${trace?.before.pc === index * 4 ? 'last-instruction' : ''}`}><button onClick={() => setSelected(index)} aria-pressed={selected === index}><span className="line-number">{String(index + 1).padStart(2, '0')}</span><span><code>{assembly(decode(word))}</code><small>{hex(index * 4)}<span>{hex(word)}</span></small></span><span className="line-state">{history.some(t => t.before.pc === index * 4) ? '✓' : cpu.pc === index * 4 ? '←' : ''}</span></button></li>)}</ol>
+          <InstructionEditor key={`${programId}-${selected}`} index={selected} />
+          <div className="sample-goal"><span>预设目标</span><p>{preset.goal}</p></div>
         </aside>}
 
         <section className="scene-column" aria-label="三维 CPU 工作区">
@@ -49,7 +54,7 @@ export default function App() {
           </>}
         </section>
 
-        {open && <aside className="state-panel"><RegisterPanel /></aside>}
+        {open && <aside className="state-panel"><RegisterPanel /><MemoryPanel /></aside>}
       </div>
       {open && <TracePanel />}
     </main>

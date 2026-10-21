@@ -4,43 +4,12 @@ import { Edges, Html, Line, OrbitControls } from '@react-three/drei'
 import { Group, Vector3 } from 'three'
 import { useReducedMotion } from 'motion/react'
 import { hex, i32 } from '../core/isa'
-import type { ModuleId, Phase } from '../core/trace/types'
+import type { ModuleId } from '../core/trace/types'
+import { MODULES, POSITIONS, WIRES, type Point } from './topology'
 import { useLabView } from '../stores/useLabStore'
 
-type Point = [number, number, number]
 const INK = '#a8afb9'
 const BLUE = '#91bcff'
-const POSITIONS: Record<ModuleId, Point> = {
-  pc: [-6.6, 0, 0], imem: [-4, 0, 0], decoder: [-1.3, 2.1, 0],
-  regfile: [-1.3, 0, 0], imm: [-1.3, -2.2, 0], mux: [1.25, -1.5, 0],
-  alu: [3.6, 0, 0], wb: [6.1, 0, 0],
-}
-const MODULES: { id: ModuleId; title: string; sub: string; width: number }[] = [
-  { id: 'pc', title: 'PC', sub: '程序计数器', width: 1.25 },
-  { id: 'imem', title: 'Instruction', sub: '指令存储器', width: 2.25 },
-  { id: 'decoder', title: 'Decoder', sub: '控制译码', width: 2.1 },
-  { id: 'regfile', title: 'Register File', sub: '32 × 32 bit', width: 2.1 },
-  { id: 'imm', title: 'Imm Gen', sub: '立即数生成', width: 2.1 },
-  { id: 'mux', title: 'MUX', sub: 'ALU B 选择', width: 1.2 },
-  { id: 'alu', title: 'ALU', sub: '算术逻辑单元', width: 1.9 },
-  { id: 'wb', title: 'WB', sub: '写回选择', width: 1.2 },
-]
-interface WireDef { id: string; points: Point[]; phases: Phase[]; condition?: 'ADD' | 'ADDI' }
-const WIRES: WireDef[] = [
-  { id: 'imem_addr', points: [[-5.97, 0, 0], [-5.13, 0, 0]], phases: ['fetch'] },
-  { id: 'instr_rf', points: [[-2.87, 0, 0], [-2.35, 0, 0]], phases: ['decode'] },
-  { id: 'instr_decode', points: [[-3, .15, 0], [-2.65, .15, 0], [-2.65, 2.1, 0], [-2.35, 2.1, 0]], phases: ['decode'] },
-  { id: 'instr_imm', points: [[-3, -.15, 0], [-2.65, -.15, 0], [-2.65, -2.2, 0], [-2.35, -2.2, 0]], phases: ['decode'], condition: 'ADDI' },
-  { id: 'alu_a', points: [[-.25, .2, 0], [2.65, .2, 0]], phases: ['execute'] },
-  { id: 'rs2_data', points: [[-.25, -.25, 0], [.25, -.25, 0], [.25, -1.3, 0], [.65, -1.3, 0]], phases: ['execute'], condition: 'ADD' },
-  { id: 'imm', points: [[-.25, -2.2, 0], [.25, -2.2, 0], [.25, -1.7, 0], [.65, -1.7, 0]], phases: ['execute'], condition: 'ADDI' },
-  { id: 'alu_b', points: [[1.85, -1.5, 0], [2.2, -1.5, 0], [2.2, -.25, 0], [2.65, -.25, 0]], phases: ['execute'] },
-  { id: 'alu_result', points: [[4.55, 0, 0], [5.5, 0, 0]], phases: ['execute', 'writeback'] },
-  { id: 'wb_data', points: [[6.1, -.7, 0], [6.1, -3.45, 0], [-2.45, -3.45, 0], [-2.45, -1, 0], [-1.3, -1, 0], [-1.3, -.7, 0]], phases: ['writeback'] },
-  { id: 'next_pc', points: [[-6.6, .7, 0], [-6.6, 3.5, 0], [-5.4, 3.5, 0], [-5.4, 1.15, 0], [-6.3, 1.15, 0], [-6.3, .7, 0]], phases: ['writeback'] },
-  { id: 'alu_b_imm', points: [[-.25, 2.1, 0], [1.25, 2.1, 0], [1.25, -.8, 0]], phases: ['decode'] },
-]
-
 function Packet({ points, visible, reduced }: { points: Point[]; visible: boolean; reduced: boolean }) {
   const ref = useRef<Group>(null)
   const path = points.map(p => new Vector3(p[0], p[1], .13))
@@ -127,10 +96,13 @@ function World({ labelHost }: { labelHost: HTMLDivElement }) {
       case 'imem': return hex(s.imem_rdata)
       case 'decoder': return `alu_b_imm = ${s.alu_b_imm}`
       case 'imm': return `${i32(s.imm)}`
-      case 'regfile': return phase === 'writeback' ? `x${trace.instruction.rd} ← ${i32(s.wb_data)}` : `x${trace.instruction.rs1} → ${i32(s.rs1_data)}`
+      case 'regfile': return phase === 'writeback' && s.reg_write ? `x${trace.write.rd} ← ${i32(s.wb_data)}` : `x${trace.instruction.rs1} → ${i32(s.rs1_data)}`
       case 'mux': return `${i32(s.alu_b)}`
       case 'alu': return `${i32(s.alu_a)} + ${i32(s.alu_b)} = ${i32(s.alu_result)}`
       case 'wb': return `${i32(s.wb_data)}`
+      case 'dmem': return trace.memoryAccess ? `${trace.memoryAccess.kind === 'load' ? 'R' : 'W'} [${s.dmem_addr}] = ${i32(trace.memoryAccess.data)}` : '未访问'
+      case 'branch': return s.branch ? `${i32(s.rs1_data)} = ${i32(s.rs2_data)} ? ${s.branch_taken}` : '未参与'
+      case 'nextpc': return hex(s.next_pc)
     }
   }
 
@@ -139,15 +111,15 @@ function World({ labelHost }: { labelHost: HTMLDivElement }) {
     <directionalLight position={[4, -5, 10]} intensity={2} />
     <group ref={board}>
       <mesh position={[0, 0, -.28]}>
-        <boxGeometry args={[15.7, 8.6, .26]} />
+        <boxGeometry args={[16.3, 10.2, .26]} />
         <meshStandardMaterial color="#11161d" roughness={.85} />
         <Edges color="#404854" />
       </mesh>
       {Array.from({ length: 4 }, (_, i) => <mesh key={i} position={[i % 2 ? 7.5 : -7.5, i < 2 ? -3.9 : 3.9, -.1]}><cylinderGeometry args={[.09, .09, .03, 16]} /><meshBasicMaterial color="#6d7681" /></mesh>)}
       {WIRES.map(wire => {
-        const on = revealed && !!trace && wire.phases.includes(phase) && (!wire.condition || trace.instruction.op === wire.condition)
+        const on = revealed && !!trace?.transfers.some(t => t.id === wire.id && t.phase === phase)
         return <group key={wire.id}>
-          <Line points={wire.points.map(p => [p[0], p[1], .1] as Point)} color={on ? BLUE : '#424b59'} lineWidth={on ? 2 : 1} dashed={wire.id === 'alu_b_imm'} dashSize={.12} gapSize={.08} />
+          <Line points={wire.points.map(p => [p[0], p[1], .1] as Point)} color={on ? BLUE : '#424b59'} lineWidth={on ? 2 : 1} dashed={wire.control} dashSize={.12} gapSize={.08} />
           <Packet points={wire.points} visible={on} reduced={reduced} />
         </group>
       })}

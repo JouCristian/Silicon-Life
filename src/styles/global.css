@@ -139,6 +139,13 @@ input::placeholder { color: var(--muted); }
 .register-edit summary { cursor: pointer; margin-bottom: 12px; }
 .register-edit button { margin-top: 12px; }
 .panel-footnote { margin-top: 18px; font-size: 9px; color: var(--muted); }
+.memory-panel { border-top: 1px solid var(--line); margin-top: 22px; padding-top: 20px; }
+.memory-address { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 10px; color: var(--muted); margin-bottom: 12px; }
+.memory-address input { max-width: 88px; }
+.memory-row { display: grid; grid-template-columns: 1fr auto; gap: 7px; padding: 10px 4px; border-bottom: 1px solid var(--line); font: 10px Consolas, monospace; }
+.memory-row > span, .memory-row small { color: var(--muted); }
+.memory-row small { grid-column: 1 / -1; font-size: 9px; }
+.memory-row.changed { background: oklch(.24 .035 260); color: var(--accent); }
 .trace-panel { padding: 25px 0 0; max-width: 100%; }
 .trace-panel > .section-title > span { font-family: Consolas, monospace; }
 .phases { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-block: 1px solid var(--line); }

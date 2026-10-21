@@ -1,8 +1,9 @@
 import type { Instruction } from '../isa'
+import type { DataMemory } from '../memory'
 
 export const PHASES = ['fetch', 'decode', 'execute', 'memory', 'writeback'] as const
 export type Phase = typeof PHASES[number]
-export type ModuleId = 'pc' | 'imem' | 'decoder' | 'imm' | 'regfile' | 'mux' | 'alu' | 'wb'
+export type ModuleId = 'pc' | 'imem' | 'decoder' | 'imm' | 'regfile' | 'mux' | 'alu' | 'wb' | 'dmem' | 'branch' | 'nextpc'
 export const PHASE_LABELS: Record<Phase, string> = {
   fetch: '取指', decode: '译码', execute: '执行', memory: '访存', writeback: '写回',
 }
@@ -10,9 +11,11 @@ export const PHASE_LABELS: Record<Phase, string> = {
 export interface CpuState {
   readonly pc: number
   readonly registers: readonly number[]
+  readonly memory: DataMemory
   readonly retired: number
   readonly status: 'ready' | 'halted' | 'fault'
   readonly reason?: string
+  readonly fault?: { readonly source: 'rtl' | 'host'; readonly cause?: number }
 }
 
 /** Names and encodings correspond to cpu_top.v / cpu_defs.vh. */
@@ -29,17 +32,42 @@ export interface SignalSnapshot {
   readonly alu_b: number
   readonly alu_result: number
   readonly wb_data: number
-  readonly reg_write: 1
-  readonly rf_we: 1
+  readonly reg_write: 0 | 1
+  readonly rf_we: 0 | 1
   readonly alu_op: 0
   readonly alu_a_sel: 0
   readonly alu_b_imm: 0 | 1
-  readonly imm_sel: 0
-  readonly wb_sel: 0
-  readonly mem_read: 0
-  readonly mem_write: 0
-  readonly dmem_we: 0
-  readonly dmem_wstrb: 0
+  readonly imm_sel: 0 | 1 | 2
+  readonly wb_sel: 0 | 1
+  readonly mem_read: 0 | 1
+  readonly mem_write: 0 | 1
+  readonly mem_size: 0 | 2
+  readonly load_unsigned: 0
+  readonly dmem_addr: number
+  readonly dmem_wdata: number
+  readonly dmem_rdata: number
+  readonly load_data: number
+  readonly dmem_we: 0 | 1
+  readonly dmem_wstrb: 0 | 15
+  readonly branch: 0 | 1
+  readonly branch_op: number
+  readonly branch_taken: 0 | 1
+  readonly redirect: 0 | 1
+  readonly target: number
+  readonly normal_next_pc: number
+}
+
+export type RouteId = 'imem_addr' | 'instr_rf' | 'instr_decode' | 'instr_imm' | 'alu_a' | 'rs2_data' | 'imm' | 'alu_b' | 'alu_result' | 'wb_data' | 'next_pc' | 'alu_b_imm' | 'dmem_addr' | 'dmem_wdata' | 'dmem_rdata' | 'branch_inputs' | 'branch_b' | 'redirect' | 'target' | 'branch_imm' | 'pc_plus4' | 'mem_control'
+export interface TraceTransfer {
+  readonly id: RouteId
+  readonly phase: Phase
+  readonly from: ModuleId
+  readonly to: ModuleId
+  readonly signal: keyof SignalSnapshot
+  readonly value: number
+  readonly kind: 'data' | 'control' | 'writeback'
+  /** Causal groups, parallel transfers share an order. Teaching metadata, not RTL delays. */
+  readonly order: number
 }
 
 export interface ExecutionTrace {
@@ -51,10 +79,6 @@ export interface ExecutionTrace {
   readonly signals: SignalSnapshot
   readonly write: { readonly rd: number; readonly value: number; readonly committed: boolean }
   readonly phases: Readonly<Record<Phase, readonly ModuleId[]>>
-}
-
-/** Future aligned little-endian data-memory adapter. No loads/stores execute in Sprint 01. */
-export interface DataMemory {
-  readWord(byteAddress: number): number
-  writeWord(byteAddress: number, data: number, byteStrobes: number): void
+  readonly transfers: readonly TraceTransfer[]
+  readonly memoryAccess?: { readonly kind: 'load' | 'store'; readonly address: number; readonly data: number; readonly byteStrobes: number }
 }

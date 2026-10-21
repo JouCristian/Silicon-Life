@@ -2,11 +2,13 @@ import { create } from 'zustand'
 import { initialState, MAX_STEPS, step as execute } from '../core/cpu'
 import { encode, type Instruction } from '../core/isa'
 import { PHASES, type CpuState, type ExecutionTrace, type Phase } from '../core/trace/types'
-import { DEMO_WORDS } from '../data/programs'
+import { DEMO_WORDS, PROGRAMS } from '../data/programs'
 
 interface LabStore {
   cpu: CpuState
   program: readonly number[]
+  programId: string
+  loadProgram: (id: string) => void
   history: readonly ExecutionTrace[]
   traceIndex: number
   phase: Phase
@@ -32,7 +34,7 @@ interface LabStore {
 }
 
 export const useLabStore = create<LabStore>((set, get) => ({
-  cpu: initialState(), program: DEMO_WORDS, history: [], traceIndex: -1,
+  cpu: initialState(), program: DEMO_WORDS, programId: 'arithmetic', history: [], traceIndex: -1,
   phase: 'fetch', playing: false, running: false, runSteps: 0,
   mode: 'demo', scene: 'chip', viewVersion: 0,
   step: () => {
@@ -59,6 +61,12 @@ export const useLabStore = create<LabStore>((set, get) => ({
   },
   pause: () => set({ running: false, playing: false }),
   reset: () => set({ cpu: initialState(), history: [], traceIndex: -1, phase: 'fetch', playing: false, running: false, runSteps: 0 }),
+  loadProgram: id => {
+    const preset = PROGRAMS.find(p => p.id === id)
+    if (!preset) throw new Error('未知教学程序')
+    get().reset()
+    set({ programId: id, program: preset.instructions.map(encode) })
+  },
   tick: () => {
     const s = get()
     if (!s.playing) return
@@ -86,7 +94,7 @@ export const useLabStore = create<LabStore>((set, get) => ({
     if (!Number.isInteger(index) || index < 1 || index > 31) throw new Error('x0 恒为 0；仅可编辑 x1–x31')
     const registers = [...get().cpu.registers]
     registers[index] = value
-    set({ cpu: initialState(registers) })
+    set({ cpu: initialState(registers, get().cpu.memory) })
   },
   setMode: mode => set({ mode }),
   enter: () => set(s => ({ scene: 'workbench', viewVersion: s.viewVersion + 1 })),

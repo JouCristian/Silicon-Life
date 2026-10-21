@@ -5,10 +5,15 @@ function sampleFrames(page: Page, duration: number) {
   return page.evaluate(ms => new Promise<{ time: number; renderTime: number; reveal: number; x: number; y: number; flow: number; routes: string }[]>(resolve => {
     const frames: { time: number; renderTime: number; reveal: number; x: number; y: number; flow: number; routes: string }[] = []
     const start = performance.now()
+    const renderedFrames = new Set<number>()
     const sample = (now: number) => {
       const root = document.querySelector<HTMLElement>('[data-testid="scene-root"]')!
       frames.push({ time: now - start, renderTime: Number(root.dataset.renderTime), reveal: Number(root.dataset.reveal), x: Number(root.dataset.anchorX), y: Number(root.dataset.anchorY), flow: Number(root.dataset.flowTime), routes: root.dataset.flowRoutes ?? '' })
-      if (now - start < ms) requestAnimationFrame(sample)
+      renderedFrames.add(Number(root.dataset.renderTime))
+      // Hosted SwiftShader can render fewer than 16 frames in 1.8s. Collect
+      // enough actual render timestamps without making this an FPS benchmark.
+      // Keep a hard limit so a stalled renderer still fails the assertions.
+      if (now - start < 10000 && (now - start < ms || renderedFrames.size < 16)) requestAnimationFrame(sample)
       else resolve(frames)
     }
     requestAnimationFrame(sample)
@@ -47,6 +52,7 @@ test('forward, reverse and interrupted reveal preserve Canvas and continuous scr
   await writeFile('.local/sprint02-motion-samples.json', JSON.stringify({ forward, reverse }, null, 2))
   for (const frames of [forward, reverse]) {
     expect(frames.length).toBeGreaterThan(15)
+    expect(new Set(frames.map(f => f.renderTime)).size).toBeGreaterThan(15)
     const speeds = frames.slice(1).filter((f, i) => f.renderTime > frames[i].renderTime).map(f => {
       const i = frames.indexOf(f)
       return Math.hypot(f.x - frames[i - 1].x, f.y - frames[i - 1].y) / (f.renderTime - frames[i - 1].renderTime)

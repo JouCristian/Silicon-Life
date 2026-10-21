@@ -73,7 +73,13 @@ Three 共享包仍约 1.17 MB（gzip 327 KB），有构建体积提示。Canvas 
 
 没有 Testbench 或 Verilog 联合仿真，尚不能声称 RTL 等价；完整 RV32I、完整 Trap/CSR、字节 / 半字指令未实现。内存越界和程序结束是宿主策略。
 
-远程仓库和 Sprint 01 main 已存在；本轮尚未 Push / PR / Merge / 部署，也未触发本轮 GitHub Actions。没有连接 v0。
+远程仓库和 Sprint 01 main 已存在。用户确认 Sprint 02 后授权 Push 与 PR，已创建 [PR #1](https://github.com/JouCristian/Silicon-Life/pull/1)，未 Merge 或部署，没有连接 v0。
+
+## PR 远程 CI 检查
+
+首次 [PR Actions #39640059957](https://github.com/JouCristian/Silicon-Life/actions/runs/39640059957) 的依赖安装、类型检查、48 项单元测试、生产构建通过，E2E 为 4 通过 / 1 失败。失败发生在正反向转场的采样帧数断言：云端 SwiftShader 在固定 1.8 秒内只采到 10 帧，要求为至少 16 帧。
+
+采样现在同时满足最短时长和至少 16 个不同的渲染时间戳，最多等待 10 秒；保留原有帧数、真实中间进度、速度、Canvas 身份和尺寸断言，并新增不同渲染时间戳数量断言。该检查验证连续性，不把共享云主机软件渲染的 FPS 当作产品性能指标。CPU 与产品动画未改动。CI 始终上传 test-results 和指定帧 JSON（保留 7 天），不上传 .local/browsers。后续实际执行状态以 PR 最新提交的 Checks 为准。
 
 本机重跑浏览器测试：
 

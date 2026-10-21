@@ -1,7 +1,7 @@
 import { Component, Suspense, useEffect, useMemo, useRef, useState, type ComponentRef, type ReactNode, type RefObject } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Edges, Html, Line, OrbitControls } from '@react-three/drei'
-import { Group, Mesh, PerspectiveCamera, Vector3 } from 'three'
+import { Group, Mesh, PerspectiveCamera, Vector3, type Material } from 'three'
 import { useMotionPreference } from '../motion/useMotionPreference'
 import { hex, i32 } from '../core/isa'
 import type { ModuleId } from '../core/trace/types'
@@ -36,6 +36,7 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
   const mark = useRef<HTMLDivElement>(null)
   const reveal = useRef(SPRING())
   const anchorX = useRef(SPRING()), anchorY = useRef(SPRING()), scale = useRef({ position: 1, velocity: 0 })
+  const escapeX = useRef({ position: 18, velocity: 0 }), escapeY = useRef({ position: 14, velocity: 0 })
   const anchor = useRef({ x: .4, y: 0, width: 800, height: 600 })
   const initialized = useRef(false), autoView = useRef(true)
   const open = scene === 'workbench'
@@ -101,22 +102,42 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
       const root = labelHost.parentElement!
       root.dataset.reveal = t.toFixed(4)
       root.dataset.reducedMotion = String(reduced)
+      root.dataset.compactLabels = String(anchor.current.height < 280)
+      root.dataset.mediumLabels = String(anchor.current.height >= 280 && anchor.current.height < 360)
       root.dataset.renderTime = clock.elapsedTime.toFixed(4)
+      root.dataset.camera = camera.position.toArray().map(n => n.toFixed(5)).join(',')
       root.dataset.anchorX = ((projected.x + 1) / 2 * size.width).toFixed(2)
       root.dataset.anchorY = ((1 - projected.y) / 2 * size.height).toFixed(2)
-      const flowTime = reduced ? timeline.duration : presentationClock.read(playbackEpoch, inspection, timeline.duration)
+      const rect = anchorRef.current?.getBoundingClientRect()
+      if (rect) root.style.clipPath = `inset(${Math.max(0, rect.top)}px ${Math.max(0, size.width - rect.right)}px ${Math.max(0, size.height - rect.bottom)}px ${Math.max(0, rect.left)}px)`
+      const flowTime = presentationClock.read(playbackEpoch, inspection, timeline.duration)
       root.dataset.flowTime = flowTime.toFixed(4)
       root.dataset.flowRoutes = timeline.transfers.map(route => `${route.id}:${Math.max(0, Math.min(1, (flowTime - route.start) / (route.end - route.start))).toFixed(3)}`).join(',')
     }
     if (model.current) { model.current.position.z = reduced ? 0 : Math.sin(clock.elapsedTime * .65) * .09 * (1 - t); model.current.rotation.z = reduced ? 0 : Math.sin(clock.elapsedTime * .19) * .012 * (1 - t) }
     if (board.current) { board.current.scale.setScalar(.42 + .58 * t); board.current.position.z = -1.2 + 1.2 * t }
     if (cover.current) {
-      cover.current.visible = t < .998
+      // Lift clear of the board before separating, then pass beyond the current
+      // projected viewport, including the user's zoom. Fade only during exit.
+      const zoomPpu = size.height / (2 * camera.position.length() * Math.tan(40 * Math.PI / 360)) * scale.current.position
+      springStep(escapeX.current, Math.max(18, anchor.current.width / (2 * zoomPpu) + 5), dt)
+      springStep(escapeY.current, Math.max(14, anchor.current.height / (2 * zoomPpu) + 5), dt)
+      const separation = smoothstep(.07, .96, t)
+      const opacity = 1 - smoothstep(.48, .94, t)
+      cover.current.visible = opacity > .00001
       cover.current.children.forEach((child, i) => {
-        const gather = t < .15 ? Math.sin(t / .15 * Math.PI) * .06 : 0
-        child.position.set((i % 2 === 0 ? -1 : 1) * (1.8 + t * 10 - gather), (i < 2 ? -1 : 1) * (1.8 + t * 7 - gather), 1.15 + t * 5)
+        child.position.set((i % 2 === 0 ? -1 : 1) * (1.8 + separation * escapeX.current.position), (i < 2 ? -1 : 1) * (1.8 + separation * escapeY.current.position), 1.15 + smoothstep(0, .28, t) * 4 + t * 2)
         child.rotation.set(t * .2 * (i % 2 ? 1 : -1), t * .35, 0)
+        child.traverse(object => {
+          if (!('material' in object)) return
+          const materials = Array.isArray(object.material) ? object.material : [object.material]
+          for (const material of materials as Material[]) {
+            material.transparent = true; material.depthWrite = false; material.opacity = opacity
+          }
+        })
       })
+      labelHost.parentElement!.dataset.coverOpacity = opacity.toFixed(4)
+      labelHost.parentElement!.dataset.coverDistance = cover.current.children.map(child => child.position.length().toFixed(3)).join(',')
     }
     blocks.current.forEach((block, i) => { const p = POSITIONS[MODULES[i].id]; block?.position.set(p[0] * (.32 + .68 * t), p[1] * (.32 + .68 * t), .35) })
     spatial.current?.updateMatrixWorld(true)
@@ -163,7 +184,7 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
       <IdlePulse visible={!open} reduced={reduced} />
       <Html portal={{ current: labelHost }} center position={[0, 0, 1.6]} zIndexRange={[8, 0]} style={{ pointerEvents: 'none' }}><div ref={mark} className="die-mark" aria-hidden={open}>芯生<span>RV32I / SILICON LIFE</span></div></Html>
     </group></group>
-    <OrbitControls ref={controls} makeDefault enableDamping dampingFactor={.075} minDistance={18} maxDistance={44} minPolarAngle={.12} maxPolarAngle={Math.PI / 2.15} onStart={() => { autoView.current = false }} />
+    <OrbitControls ref={controls} domElement={anchorRef.current ?? undefined} makeDefault enableDamping dampingFactor={.075} minDistance={18} maxDistance={44} minPolarAngle={.12} maxPolarAngle={Math.PI / 2.15} onStart={() => { autoView.current = false }} />
   </>
 }
 
@@ -176,7 +197,7 @@ class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean
 export default function CpuScene({ anchorRef }: { anchorRef: Anchor }) {
   const [labelHost, setLabelHost] = useState<HTMLDivElement | null>(null)
   return <SceneBoundary><Suspense fallback={<div className="scene-fallback">正在建立三维场景…</div>}><div className="scene-root" data-testid="scene-root">
-    <Canvas camera={{ position: [10, -15, 23], up: [0, 0, 1], fov: 40 }} dpr={[1, 1.5]} gl={{ antialias: true, alpha: true }} aria-label="可旋转的三维 CPU 数据通路" fallback={<div className="scene-fallback">如设备无法显示 WebGL 场景，可继续使用 CPU 操作与信号面板。</div>}>
+    <Canvas eventSource={anchorRef} eventPrefix="client" camera={{ position: [10, -15, 23], up: [0, 0, 1], fov: 40 }} dpr={[1, 1.5]} gl={{ antialias: true, alpha: true }} aria-label="可旋转的三维 CPU 数据通路" fallback={<div className="scene-fallback">如设备无法显示 WebGL 场景，可继续使用 CPU 操作与信号面板。</div>}>
       {labelHost && <World labelHost={labelHost} anchorRef={anchorRef} />}
     </Canvas><div ref={setLabelHost} className="scene-label-host" />
   </div></Suspense></SceneBoundary>

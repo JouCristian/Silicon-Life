@@ -24,5 +24,7 @@ jobs:
             test-results/
             .local/sprint02-motion-samples.json
             .local/sprint02-flow-samples.json
+            .local/sprint021-*.png
+            .local/sprint021-native-zoom.json
           include-hidden-files: true
           retention-days: 7

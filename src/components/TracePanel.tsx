@@ -1,9 +1,12 @@
 import { assembly, hex, i32 } from '../core/isa'
 import { PHASES, PHASE_LABELS } from '../core/trace/types'
 import { useLabView } from '../stores/useLabStore'
+import { PLAYBACK_RATES, transferSteps } from '../motion/transferPlayback'
 
 export function TracePanel() {
-  const { trace, phase, observe, history, traceIndex, replay, resumePlayback, pause, playing, mode } = useLabView()
+  const { trace, phase, observe, history, traceIndex, replay, resumePlayback, pause, playing, mode, stepTransfer, transferPlayback, playbackRate, setPlaybackRate } = useLabView()
+  const steps = transferSteps(trace)
+  const transfer = transferPlayback.mode === 'transfer' ? steps[transferPlayback.index] : undefined
   const descriptions = trace ? {
     fetch: `PC ${hex(trace.before.pc)} 向指令存储器寻址，读出 ${hex(trace.word)}。`,
     decode: `${trace.instruction.op}：读取 x${trace.instruction.rs1} = ${i32(trace.signals.rs1_data)}，${'imm' in trace.instruction ? `立即数符号扩展为 ${i32(trace.signals.imm)}` : `读取 x${trace.instruction.rs2} = ${i32(trace.signals.rs2_data)}`}。`,
@@ -13,7 +16,15 @@ export function TracePanel() {
   } : null
   return <section className="trace-panel">
     <div className="section-title"><h2>观察一条指令</h2><span>{trace ? assembly(trace.instruction) : '从单步开始'}</span></div>
-    <div className="phases" aria-label="概念观察阶段">{PHASES.map((p, i) => <button key={p} disabled={!trace} className={phase === p && trace ? 'selected' : ''} aria-pressed={phase === p && !!trace} onClick={() => observe(p)}><span>0{i + 1}</span>{PHASE_LABELS[p]}<small>{p === 'memory' ? trace?.memoryAccess ? trace.memoryAccess.kind === 'load' ? 'Load' : 'Store' : '可跳过' : ['Read', 'Decode', 'Compute', '', 'Commit'][i]}</small></button>)}</div>
+    <div className="transfer-toolbar">
+      <button className="button subtle" onClick={stepTransfer} disabled={!steps.length || transferPlayback.mode === 'transfer' && (playing || transferPlayback.complete)}>单步传递</button>
+      <label className="playback-speed">传播速率<select aria-label="传播速率" value={playbackRate} onChange={e => setPlaybackRate(Number(e.target.value))}>{PLAYBACK_RATES.map(rate => <option key={rate} value={rate}>{rate.toFixed(2)}×</option>)}</select></label>
+      <div className="transfer-status" role="status" data-testid="transfer-status">{transferPlayback.mode === 'transfer' ? transferPlayback.complete ? `本条指令的 ${steps.length} 组可观察传递已完成。可回放或执行下一条指令。` : `${transferPlayback.index + 1} / ${steps.length} · ${transfer?.transfers.map(t => `${t.from} → ${t.to} (${t.signal})`).join('；')} · ${playing ? '传播中' : '已暂停，等待下一次操作'}` : '每次观察一组真实连接；并行信号保留同组关系，不代表 CPU 时钟。'}</div>
+    </div>
+    <div className="phases" aria-label="概念观察阶段">{PHASES.map((p, i) => {
+      const detail = p === 'memory' ? trace?.memoryAccess ? trace.memoryAccess.kind === 'load' ? 'Load' : 'Store' : '可跳过' : ['Read', 'Decode', 'Compute', '', 'Commit'][i]
+      return <button key={p} aria-label={`0${i + 1} ${PHASE_LABELS[p]} ${detail}`} disabled={!trace} className={phase === p && trace ? 'selected' : ''} aria-pressed={phase === p && !!trace} onClick={() => observe(p)}><span>0{i + 1}</span>{PHASE_LABELS[p]}<small>{detail}</small></button>
+    })}</div>
     <p className="phase-description" aria-live="polite">{descriptions?.[phase] ?? '点击「单步指令」，观察数据如何穿过一颗单周期 CPU。'}</p>
     <div className="trace-note"><span className="tiny-dot" />慢动作仅解释已提交的快照，不增加时钟周期。</div>
     {mode === 'pro' && <div className="signals"><div className="section-title"><h3>RTL 信号快照</h3><span>ADDI / ADD / LW / SW / BEQ</span></div>{trace ? Object.entries(trace.signals).map(([key, value]) => <div key={key}><code>{key}</code><code>{key.endsWith('_data') || key.startsWith('dmem_') && key !== 'dmem_we' && key !== 'dmem_wstrb' || ['imm', 'alu_a', 'alu_b', 'alu_result', 'target', 'normal_next_pc', 'pc_value', 'pc_plus4', 'next_pc', 'imem_addr', 'imem_rdata'].includes(key) ? hex(value) : value}</code></div>) : <p className="field-help">执行后显示与 cpu_top.v 对应的信号。</p>}</div>}

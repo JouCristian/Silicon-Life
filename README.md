@@ -2,7 +2,7 @@
 
 基于真实 RV32I 单周期架构的三维交互教学网站。Sprint 02 支持 **ADDI、ADD、LW、SW、BEQ**，包含三组真实程序、小端数据内存、RTL 信号快照和连续可逆的芯片展开。
 
-仓库：[JouCristian/Silicon-Life](https://github.com/JouCristian/Silicon-Life)。Sprint 01 已由用户推送到 `main`；Sprint 02 在 `feat/sprint-02` 本地开发，本轮 Push、PR、Merge 均需用户确认。未连接 v0。
+仓库：[JouCristian/Silicon-Life](https://github.com/JouCristian/Silicon-Life)。Sprint 02 已创建 [PR #1](https://github.com/JouCristian/Silicon-Life/pull/1)，保持未合并。Sprint 02.1 继续在 `feat/sprint-02` 本地修订，尚未 Push 或部署。未连接 v0。
 
 ## 本地运行
 
@@ -48,6 +48,15 @@ addi x3, x0, 42
 - 尊重 reduced-motion，也响应页面打开后偏好的改变；简化动画后仍可执行所有程序。
 - 连续执行上限 1000 条。未对齐访存或成立分支的未对齐目标会停止，错误指令不部分提交。内存越界是宿主检查，不冒充 RTL Trap。
 
+## Sprint 02.1 工作台验收
+
+- 桌面宽 ≥1100px、高 ≥700px 时，Header / 主体 / Footer 组成 `100dvh` 工作台；程序、状态、中央下方讲解三个区域独立原生滚动，3D 区始终可见。空间不足时切换顺序布局，允许 document 滚动，所有内容仍可访问。
+- 拖动两条竖分隔线调整栏宽，拖动中间横分隔线调整 3D 与讲解高度。方向键微调，Shift 加速；双击或 Home 恢复该条分隔线。比例不跨会话保存，窗口变化时受最小尺寸约束。
+- 仅在真正的 3D 区域内滚轮缩放、拖动旋转/平移。侧栏、Trace 和 Header 不控制镜头；首页芯片仍可点击和旋转。所有尺寸变化保留同一 Canvas。
+- 先「单步指令」提交真实 CPU 状态，然后选择阶段并点击「单步传递」；每次传播一组真实 Trace 连接并停住。并行信号一起观察，空阶段跳过。完成提示后可回放、切换阶段或执行下一条。
+- 「暂停讲解 / 继续讲解」冻结或恢复当前事件；「回放」重置为整条指令的自动讲解。阶段切换重置传递游标。以上操作不会增加 retired，也不会再次写寄存器、PC 或内存。
+- 「传播速率」默认 0.50×，支持 0.25 / 0.50 / 0.75 / 1.00 / 1.50 / 2.00×。中途修改不重置逻辑时间；不改变 Core 结果。减弱动态效果使用简化端点，保留操作与完成反馈。
+
 ## 验证与构建
 
 ```sh
@@ -68,7 +77,7 @@ npm run test:e2e
 
 E2E 保存首帧、中段、结束、反向截图及逐帧 JSON 到 `.local/`。帧检查验证连续性和状态边界，不能替代真实设备的视觉与性能评审。完整记录见 [VALIDATION](docs/VALIDATION.md)。
 
-生产输出为 `dist/`，可部署到 Vercel 静态托管或 Linux Nginx。默认域名根路径；子路径托管需配置 Vite `base`。本轮未部署。CI 已配置，本轮分支尚未推送，因此未运行本轮 GitHub Actions。
+生产输出为 `dist/`，可部署到 Vercel 静态托管或 Linux Nginx。默认域名根路径；子路径托管需配置 Vite `base`。Sprint 02 的实际 CI 已通过；Sprint 02.1 尚未推送，因此没有本轮远程 CI 结果。
 
 ## 工程边界
 

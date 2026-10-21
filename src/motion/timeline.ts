@@ -27,7 +27,7 @@ export function timelineFor(trace: ExecutionTrace | undefined, phase: Phase): Ti
       return Object.freeze({ ...t, start: time, end: time + duration })
     })
     transfers.push(...group)
-    time = Math.max(time, ...group.map(t => t.end)) + .035
+    time = Math.max(time, ...group.map(t => t.end)) + .36
   }
   return phases[phase] = Object.freeze({ transfers: Object.freeze(transfers), duration: source.length ? time + MOTION.flow.tail : MOTION.flow.idle })
 }
@@ -35,13 +35,14 @@ export function timelineFor(trace: ExecutionTrace | undefined, phase: Phase): Ti
 export class PresentationClock {
   epoch = -1
   elapsed = 0
-  update(epoch: number, inspection: boolean, playing: boolean, dt: number, duration: number): boolean {
+  update(epoch: number, inspection: boolean, playing: boolean, dt: number, duration: number, speed = 1): boolean {
     if (this.epoch !== epoch) { this.epoch = epoch; this.elapsed = inspection ? duration : 0 }
-    if (playing) this.elapsed = Math.min(duration, this.elapsed + Math.max(0, dt))
+    if (playing) this.elapsed = Math.min(duration, this.elapsed + Math.max(0, dt) * speed)
     return playing && this.elapsed >= duration
   }
   read(epoch: number, inspection: boolean, duration: number) {
     return inspection ? duration : this.epoch === epoch ? Math.min(duration, this.elapsed) : 0
   }
+  seek(epoch: number, time: number) { this.epoch = epoch; this.elapsed = Math.max(0, time) }
 }
 export const presentationClock = new PresentationClock()

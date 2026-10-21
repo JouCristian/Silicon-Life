@@ -2,13 +2,13 @@ import { expect, test, type Page } from '@playwright/test'
 import { writeFile } from 'node:fs/promises'
 
 function sampleFrames(page: Page, duration: number) {
-  return page.evaluate(ms => new Promise<{ time: number; renderTime: number; reveal: number; x: number; y: number; flow: number; routes: string }[]>(resolve => {
-    const frames: { time: number; renderTime: number; reveal: number; x: number; y: number; flow: number; routes: string }[] = []
+  return page.evaluate(ms => new Promise<{ time: number; renderTime: number; reveal: number; x: number; y: number; flow: number; routes: string; cover: number; distance: number }[]>(resolve => {
+    const frames: { time: number; renderTime: number; reveal: number; x: number; y: number; flow: number; routes: string; cover: number; distance: number }[] = []
     const start = performance.now()
     const renderedFrames = new Set<number>()
     const sample = (now: number) => {
       const root = document.querySelector<HTMLElement>('[data-testid="scene-root"]')!
-      frames.push({ time: now - start, renderTime: Number(root.dataset.renderTime), reveal: Number(root.dataset.reveal), x: Number(root.dataset.anchorX), y: Number(root.dataset.anchorY), flow: Number(root.dataset.flowTime), routes: root.dataset.flowRoutes ?? '' })
+      frames.push({ time: now - start, renderTime: Number(root.dataset.renderTime), reveal: Number(root.dataset.reveal), x: Number(root.dataset.anchorX), y: Number(root.dataset.anchorY), flow: Number(root.dataset.flowTime), routes: root.dataset.flowRoutes ?? '', cover: Number(root.dataset.coverOpacity), distance: Number((root.dataset.coverDistance ?? '0').split(',')[0]) })
       renderedFrames.add(Number(root.dataset.renderTime))
       // Hosted SwiftShader can render fewer than 16 frames in 1.8s. Collect
       // enough actual render timestamps without making this an FPS benchmark.
@@ -50,6 +50,9 @@ test('forward, reverse and interrupted reveal preserve Canvas and continuous scr
   await page.screenshot({ path: '.local/sprint02-return-0.png' })
   await info.attach('continuous-reveal-frames', { body: JSON.stringify({ forward, reverse }), contentType: 'application/json' })
   await writeFile('.local/sprint02-motion-samples.json', JSON.stringify({ forward, reverse }, null, 2))
+  expect(forward.some(f => f.cover > 0.05 && f.cover < .95)).toBe(true)
+  expect(reverse.some(f => f.cover > 0.05 && f.cover < .95)).toBe(true)
+  expect(Math.max(...forward.map(f => f.distance))).toBeGreaterThan(15)
   for (const frames of [forward, reverse]) {
     expect(frames.length).toBeGreaterThan(15)
     expect(new Set(frames.map(f => f.renderTime)).size).toBeGreaterThan(15)
@@ -76,14 +79,18 @@ test('trace pulses travel directionally, pause in place and replay without memor
   await page.goto('/')
   await page.getByRole('button', { name: '进入芯片' }).click()
   await page.getByLabel('教学程序').selectOption('memory')
+  await page.getByLabel('传播速率').selectOption('2')
   await page.getByRole('button', { name: '运行', exact: true }).click()
   await expect(page.getByTestId('register-3').locator('code')).toHaveText('42')
   await expect(page.getByRole('button', { name: '运行', exact: true })).toBeDisabled()
   await page.emulateMedia({ reducedMotion: 'no-preference' })
   await expect(page.getByTestId('scene-root')).toHaveAttribute('data-reduced-motion', 'false')
-  // Record before replay so short transfers cannot finish between polling and sampling.
-  const playbackRecording = sampleFrames(page, 2600)
+  // Record before resuming the selected real memory stage.
   await page.getByLabel('执行记录').selectOption('2')
+  await page.getByRole('button', { name: '04 访存 Store' }).click()
+  await page.getByLabel('传播速率').selectOption('0.5')
+  const playbackRecording = sampleFrames(page, 2600)
+  await page.getByRole('button', { name: '继续讲解' }).click()
   await expect(page.getByRole('button', { name: '04 访存 Store' })).toHaveAttribute('aria-pressed', 'true', { timeout: 10000 })
   const root = page.getByTestId('scene-root')
   await expect.poll(async () => Number(await root.getAttribute('data-flow-time'))).toBeGreaterThan(.08)

@@ -12,6 +12,7 @@ test('real program, trace replay, register edits and responsive workbench', asyn
   await page.getByRole('button', { name: '进入芯片' }).click()
   await expect(page.getByText('Register File', { exact: true })).toBeVisible({ timeout: 20000 })
   await page.screenshot({ path: '.local/workbench.png' })
+  await page.getByLabel('传播速率').selectOption('2')
   await page.getByRole('button', { name: '运行', exact: true }).click()
   await expect(page.getByTestId('register-3').locator('code')).toHaveText('12', { timeout: 20000 })
   await expect(page.getByTestId('pc')).toHaveText('0x0000000c')
@@ -65,6 +66,7 @@ test('chip mesh opens the same scene, with reduced motion and repeated navigatio
   await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2)
   await expect(page.getByRole('heading', { name: '让指令，走一遍。' })).toBeVisible()
   await expect(page.getByText('Register File', { exact: true })).toBeVisible()
+  await page.getByLabel('传播速率').selectOption('2')
   await page.getByRole('button', { name: '运行', exact: true }).click()
   await expect(page.getByTestId('register-3').locator('code')).toHaveText('12')
   await page.getByRole('button', { name: '探索芯片', exact: true }).click()
@@ -86,6 +88,7 @@ test('all three programs execute real arithmetic, memory and branch paths', asyn
   await expect(page.getByText('Data Memory', { exact: true })).toBeVisible({ timeout: 20000 })
   for (const [id, expected, pc] of [['arithmetic', '12', '0x0000000c'], ['memory', '42', '0x00000010'], ['branch', '42', '0x00000014']]) {
     await page.getByLabel('教学程序').selectOption(id)
+    await page.getByLabel('传播速率').selectOption('2')
     await page.getByRole('button', { name: '运行', exact: true }).click()
     await expect(page.getByTestId('register-3').locator('code')).toHaveText(expected, { timeout: 15000 })
     await expect(page.getByTestId('pc')).toHaveText(pc)

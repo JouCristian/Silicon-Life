@@ -7,7 +7,7 @@ export const MOTION = {
   anchorOmega: 9,
   cameraResponse: 6,
   orbitDamping: 6,
-  flow: { lead: .06, tail: .1, min: .18, max: .65, speed: 32, idle: .22, reduced: .08 },
+  flow: { lead: .09, tail: .4, min: .3, max: .95, speed: 23, idle: .22, reduced: .08 },
   color: { data: '#a3ccff', control: '#d7bb92', writeback: '#94d7c4', inactive: '#435060' },
 } as const
 

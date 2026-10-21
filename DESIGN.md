@@ -14,7 +14,11 @@
 
 ## Layout
 
-桌面：程序与编码器 / 三维工作区 / 寄存器，底部为五个概念观察阶段。1250px 以下寄存器下移，600px 以下按工作区、程序、寄存器排列。无需卡片堆叠，主要区域用细线分隔。
+Sprint 02.1：桌面宽 ≥1100px、高 ≥700px 时，`100dvh` Grid shell 为 76px Header、可收缩 main、40px Footer。main 包含标题与三栏工作区；左侧程序和右侧状态独立滚动，中间为 3D / 分隔线 / 独立滚动的控制与 Trace。所有 Grid/Flex 中间层显式设置 min-height/min-width: 0。两条竖向分隔线和一条横向分隔线支持 pointer capture、键盘和双击重置。左右最小 210px，中间最小 380px，上区域最小 318px（含工具栏和图例），下区域最小 160px。
+
+窗口尺寸不足时切换 CPU 优先的顺序布局，允许页面滚动，不丢内容。表单、寄存器和信号列表根据容器宽度重排。html 与内部滚动区使用 stable gutter；原生细滚动条提供 Chromium / Firefox 两套样式。Footer 参与布局，不覆盖内容。比例只存内存，避免不同屏幕恢复无效尺寸。
+
+参考 [Apple HIG Layout](https://developer.apple.com/cn/design/human-interface-guidelines/layout) 的内容分组、对齐、按重要性排序和自适应尺寸原则；已读取 Apple 官方文档 JSON 正文。维持项目既定黑灰蓝，不引入 Liquid Glass 装饰。
 
 ## Components and motion
 
@@ -22,7 +26,9 @@
 
 Motion 负责 opacity / translate、按因果错峰、退出后卸载与 inert；焦点移入新场景。配置统一在 `src/motion/design.ts`，一般进入 320ms、退出 180ms、错峰 65ms。尊重并订阅动态 reduced-motion 偏好。
 
-数据流使用真实 Trace 的传输组和实际连线的局部光段。按弧长安排 180–650ms 单段运动，发送端先激活，接收端到达后进行不超过 0.055 世界单位的抬升与低亮度响应。暂停冻结播放时钟，阶段检查展示静态末端，回放不触发执行。首页只有缓慢呼吸、少量中性光点与 OrbitControls 惯性，不使用 Bloom 或大量粒子。
+数据流使用真实 Trace 的传输组和实际连线，基础单段按弧长安排 300–950ms；默认 0.50×。光头采用平滑进出和连续插值，四段尾迹柔和衰减；接收端使用逻辑时间驱动的解析阻尼脉冲，抬升不超过 0.055 世界单位。发出、传播、到达、响应、稳定分开表达。暂停冻结光流和模块响应，倍速与基础时间表缓存分离。单步传递只播放一个真实因果组，保留组内并行，不表示额外时钟。
+
+R3F 的 eventSource 与 OrbitControls 的 domElement 同时绑定 scene-anchor。固定 Canvas 使用 client 坐标射线和真实区域裁剪；拖动分隔线只调整几何。盖板先抬升，再向四个方向远离，根据当前相机、视口和尺度估计离场距离，后段连续淡出，逆向保持速度。首页只有缓慢呼吸与 OrbitControls 惯性，不使用 Bloom 或大量粒子。
 
 ## Limitations
 

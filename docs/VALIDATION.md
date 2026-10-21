@@ -1,5 +1,30 @@
 # Sprint 02 验证记录
 
+## Sprint 02.1 本地验收（2026-10-22）
+
+沿用 feat/sprint-02，起点 3d7ed59；PR #1 查询为 open、未合并、base main。用户明确要求本轮不 Push / Merge / 部署；远程 PR 与 Actions 仍对应 Sprint 02，不代表当前本地修订。
+
+### 新增覆盖
+
+最终本地结果：npm run typecheck 通过；npm test 5 文件 / 53 项通过（原有 48 项保留）；npm run build 通过；npm run test:e2e 9 条全部通过，用时约 1.3 分钟。验收捕获 pageerror / console.error 为 0，未出现 ResizeObserver 错误。Three 共享包仍为 1,168.42 KB，gzip 327.41 KB，保留体积警告。没有把本地通过表述为本轮远程 CI 通过。
+
+- 1280×720、1440×900、1920×1080：Header 横向位置保持，桌面 document 无纵向溢出。程序、右侧状态、details 分别注入 1800px 压力内容，各自可滚动，CPU anchor 与 Footer 边界保持相同。尺寸切换等待浏览器和 ResizeObserver 完成布局后再比较，避免拿旧尺寸作基准。
+- 两个竖分隔线与一个横分隔线：pointer capture 下松开之前已有几何变化，移出分隔线、极端拖动、键盘、Home 和双击均覆盖；Canvas DOM 身份保持。
+- 1152×720、960×600 和 390×844 重新排版无横向溢出。较矮的三维视口采用模块缩写，完整执行数据保留在 HTML 面板。
+- 真实 Chromium 页面缩放：临时独立浏览器配置经 chrome://settings 的原生页面缩放 API 设置 1.25 / 1.5。实际 DPR 分别 1.25 / 1.5，CSS 视口分别约 1134×642 / 945×535（外窗 1440×900）。Header 切换前后 x / width 相同，无横向溢出，Footer 可见，键盘进入与单步后 x1=5。没有用 CSS transform 或 DPR 模拟代替这一项。
+- 原生缩放 + viewport:null 下的 Playwright 截图在本机挂起；该项用实际 DPR、页面几何和执行断言取证，记录 .local/sprint021-native-zoom.json。鼠标操作与截图在常规视口单独验证，原生缩放下使用键盘操作，不声称所有系统的缩放鼠标坐标均经自动化验证。
+- 3D 区滚轮实际改变相机位置；程序、状态、Trace 和 Header 的滚轮均不改变相机。拖分隔线不旋转 CPU。6 次首页 / 工作台往返后，通过 CDP 比较真实 anchor 的事件监听类型及数量保持不变。
+- 单步传递逐因果组传播并停住，保留实际并行信号；空阶段跳过、完成提示、游标重置、暂停/继续/阶段切换/历史回放均有断言。快照对象、PC / 寄存器 / 内存 / retired 不因播放控制发生重复提交。
+- 倍速默认 .5，六档可选；播放中切换不中断逻辑时间，暂停后改速仍严格冻结。基础 timeline 缓存不含速度。
+- 光流保留路径连续性；接收模块的解析阻尼响应只读逻辑时间。正反向逐帧记录增加盖板 opacity / distance，检验渐隐中间状态和有效离场距离，中途反转仍保留原有连续性检查。
+- 三组程序结果、异常原子性、1000 条保护等原有基准保留。没有修改 src/core/；8 个 RTL 原件的 SHA-256 再次与映射基线一致。
+
+### 证据与边界
+
+.local/sprint021-1280.png、sprint021-1440.png、sprint021-1920.png、sprint021-compact-*.png 是布局截图；sprint02-motion-samples.json 含本轮盖板与连续转场采样，sprint02-flow-samples.json 含真实路径与暂停数据。最终正常视口另保存 sprint021-final-1280.png / 1440.png / 390.png，避免把全长截图中固定 Canvas 的位置当作实际移动设备视口。CI 的证据上传规则已包含新增布局截图与原生缩放记录，待本轮获准 Push 后才会运行。
+
+真实 GPU 性能、Safari / Firefox 和触屏设备未验证。盖板离场采用当前相机与视口的保守投影估计，不声称完成任意角度的精确几何碰撞证明。RTL 联合仿真和完整 RV32I 仍不在本轮范围。完整视觉品质仍需用户在实际浏览器验收。
+
 日期：2026-10-22（Asia/Shanghai）。Windows，Node v24.15.0、npm 11.12.1，Chromium 156 / Playwright，SwiftShader 软件 WebGL。
 
 ## 基线与阶段顺序

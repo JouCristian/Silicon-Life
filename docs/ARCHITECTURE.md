@@ -42,6 +42,14 @@ ResizeObserver / scroll 更新目标锚点；解析临界阻尼弹簧连续平�
 
 蓝 / 浅金 / 青绿区分数据、控制和写回。reduced-motion 使用静态端点与简化阶段切换。CPU 的架构面板始终显示已提交状态，场景展示的是所选快照。
 
+## Sprint 02.1 布局与播放补充
+
+`WorkbenchLayout` 独立持有面板尺寸，不访问 CPU；ResizeObserver 与约束计算适应视口变化。原生滚动限制在程序、状态、details 三个区域，紧凑模式允许页面滚动。分隔线使用 pointer capture 和原生 separator ARIA。Canvas 不随布局拆装；R3F eventSource / OrbitControls domElement 都指向同一真实 anchor，射线使用固定视口的 client 坐标。
+
+`transferPlayback.ts` 将真实 Trace 按 phase/order 分组，跳过空阶段；WeakMap 缓存不含速率。Store 持有 `auto | transfer(index, complete)` 状态；playing 继续作为唯一播放开关，running 决定自动讲解结束后是否执行下一条。stepTransfer / pause / resume / observe / replay 从不调用 Core。只有原有 step / run 链可提交架构边沿。
+
+PresentationClock 的 seek 是明确的观察跳转；update 按 playbackRate 累加逻辑秒。速率改变不换 epoch、不清空时间。传递模式在当前组到达与接收反馈结束后停止，下一因果组仍未发出；继续整程序运行时退出传递模式。reduced-motion 以相同控制边界快速展示静态端点。光流和模块反馈都读取逻辑时间，暂停期间不继续弹簧收敛。没有每帧 Zustand 更新。
+
 ## 边界
 
 无 RTL 差分验证、完整指令集、完整异常控制、持久化或后端。有限内存越界与程序结束属于宿主策略。固定 Canvas 增加绘制区域，DPR 上限 1.5，未使用 Bloom、Blur 或粒子系统；真实设备性能尚需评估。

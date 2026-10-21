@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useLabStore } from '../stores/useLabStore'
 import { MOTION } from './design'
 import { presentationClock, timelineFor } from './timeline'
+import { transferSteps } from './transferPlayback'
 
 export function usePlaybackDriver(reduced: boolean) {
   useEffect(() => {
@@ -11,8 +12,9 @@ export function usePlaybackDriver(reduced: boolean) {
       previous = now
       const s = useLabStore.getState()
       const timeline = timelineFor(s.history[s.traceIndex], s.phase)
-      const duration = reduced ? MOTION.flow.reduced : timeline.duration
-      if (presentationClock.update(s.playbackEpoch, s.inspection, s.playing, dt, duration)) s.tick()
+      const duration = s.transferPlayback.mode === 'transfer' ? transferSteps(s.history[s.traceIndex])[s.transferPlayback.index]?.end ?? timeline.duration : timeline.duration
+      const rate = s.playbackRate * (reduced ? duration / MOTION.flow.reduced : 1)
+      if (presentationClock.update(s.playbackEpoch, s.inspection, s.playing, dt, duration, rate)) s.tick()
       frame = requestAnimationFrame(update)
     }
     frame = requestAnimationFrame(update)

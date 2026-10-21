@@ -1,66 +1,75 @@
-# RTL → Web 映射（Sprint 01）
+# RTL → Web 映射（Sprint 02）
 
-核对日期：2026-10-21。来源是当前工作区 `rtl/cpu/`，全部只读。
+核对日期：2026-10-22，来源 `rtl/cpu/`，全部只读。Sprint 02 重新读取顶层、译码、宏、立即数和分支单元；沿用 Sprint 01 对 PC、寄存器堆、ALU 的已核对实现。
 
-## 实际读取的文件
+## 实际来源与模块
 
-| 文件 | 实例 / 职责 | 网页对应 |
+| RTL | 实例 / 职责 | 网页 |
 | --- | --- | --- |
-| `cpu_top.v` | 顶层；互连、选择器、PC+4、访存车道、故障门控 | 整体 Teaching Plane 与 Trace 信号 |
-| `cpu_defs.vh` | ALU / 立即数 / 选择器 / 访存 / Trap 编码 | `SignalSnapshot` 中 ADD=0、SRC_RS1=0、IMM_I=0、WB_ALU=0 |
-| `pc.v` | `u_pc`；同步高电平复位，PC=0 | PC 模块、`CpuState.pc` |
-| `decoder.v` | `u_decoder`；组合控制译码 | Decoder 模块、ADDI/ADD 译码与控制快照 |
-| `imm_gen.v` | `u_imm`；五种立即数格式 | Imm Gen 模块，本轮实现 IMM_I |
-| `regfile.v` | `u_regfile`；异步双读、同步单写、复位清零 | Register File、32 个寄存器面板 |
-| `alu.v` | `u_alu`；10 种运算 | ALU，本轮只执行 ADD |
-| `branch_unit.v` | `u_branch`；六类分支比较 | 本轮尚未展示或执行，保留 BEQ 类型扩展 |
+| `cpu_top.v` | 顶层互连、PC+4、目标加法、选择器、访存车道、故障门控 | 整体数据通路、Next PC、MUX、WB |
+| `cpu_defs.vh` | 控制与 Trap 数字编码 | SignalSnapshot 的原编码 |
+| `pc.v` | u_pc，同步高电平复位，PC=0 | PC、CpuState.pc |
+| `decoder.v` | u_decoder，组合译码 | Decoder、五条支持指令的控制快照 |
+| `imm_gen.v` | u_imm，五类立即数格式 | 本轮覆盖 IMM_I / IMM_S / IMM_B |
+| `regfile.v` | u_regfile，异步双读、同步单写，x0 丢弃写入 | Register File、架构寄存器 |
+| `alu.v` | u_alu，10 类操作 | 本轮使用 ALU_ADD |
+| `branch_unit.v` | u_branch，独立比较器 | Branch Unit，本轮执行 BEQ |
 
-另只检查 `package/cpu.zip` 的目录条目：包含相同名称的 8 个 RTL 文件，无 Testbench。没有解压、覆盖或更改原件。当前目录、压缩包内均未发现 Testbench；未找到 `iverilog`。**未运行 RTL 仿真或软件/RTL 差分验证**，不据此宣称 RTL 已验证。
+Next PC、MUX、WB 是 **顶层内联逻辑的教学分组**，不是独立 RTL 实例。Instruction / Data Memory 是顶层外部总线设备，不在 CPU RTL 内。没有复制或修改原始 FPGA 文件。
 
-## 顶层实际端口
+顶层端口：`clk, reset, imem_addr, imem_rdata, dmem_addr, dmem_wdata, dmem_rdata, dmem_we, dmem_wstrb, trap, trap_cause`。
 
-`clk, reset, imem_addr, imem_rdata, dmem_addr, dmem_wdata, dmem_rdata, dmem_we, dmem_wstrb, trap, trap_cause`。
+当前未找到 Testbench；Sprint 01 只检查过 ZIP 目录，内含同名 8 个文件。没有进行 RTL 编译、联合仿真、差分或形式验证，不能宣称完全等价。
 
-Instruction Memory 与 Data Memory 是顶层外部接口，源码中没有同名独立内存模块。网页 Instruction 模块是软件指令数组 `program[pc / 4]` 的可视化。数据内存只预留 `DataMemory.readWord/writeWord` 接口，尚未分配或执行访存，不展示虚构存储器结果。
+## 指令与控制编码
 
-## 已覆盖的真实数据通路
+| 信号 | ADDI | ADD | LW | SW | BEQ |
+| --- | --- | --- | --- | --- | --- |
+| reg_write / 正常 rf_we | 1 | 1 | 1 | 0 | 0 |
+| alu_op = ALU_ADD | 0 | 0 | 0 | 0 | 0（未用于分支判定） |
+| alu_a_sel = SRC_RS1 | 0 | 0 | 0 | 0 | 0 |
+| alu_b_imm | 1 | 0 | 1 | 1 | 0 |
+| imm_sel | 0 (I) | 0 (I，未选用) | 0 (I) | 1 (S) | 2 (B) |
+| wb_sel | 0 (ALU) | 0 | 1 (MEM) | 1（写使能为 0） | 0（写使能为 0） |
+| mem_read / mem_write | 0 / 0 | 0 / 0 | 1 / 0 | 0 / 1 | 0 / 0 |
+| mem_size | 0（无访存） | 0 | 2 (WORD) | 2 (WORD) | 0 |
+| branch | 0 | 0 | 0 | 0 | 1 |
 
-1. `pc_value → imem_addr → imem_rdata`。
-2. `imem_rdata → u_decoder / u_imm / u_regfile`。
-3. `rs1_data → alu_a`，本轮 `alu_a_sel = SRC_RS1`。
-4. ADDI：`imm → alu_b`；ADD：`rs2_data → alu_b`，由 `alu_b_imm` 选择。
-5. `alu_result → wb_data → u_regfile.rd_data`，`wb_sel = WB_ALU`。
-6. `pc_value + 4 → next_pc → u_pc`，独立于写回总线。
+`branch_op` 始终为原始 funct3；BEQ=000，LW/SW=010（比较器输出默认 false）。其他四条中的 `branch_taken` 同样保留组合比较器的真实输出，但只有 branch=1 才影响 redirect。`load_unsigned=0`。
 
-图中的 MUX、WB 是 `cpu_top.v` 内联选择逻辑的教学标记，**并非源码中单独实例**。浅灰实线是数据连接，虚线是 `alu_b_imm` 控制连接；当前只绘制 ADDI/ADD 关键子集，不表示完整 CPU 网表或完整控制扇出。`alu_a_sel` 固定为 SRC_RS1，故本轮图中直接连接；完整 ALU A MUX 待扩展。
+原始 `instr[24:20]` 始终驱动 rs2，即使 I 型未使用；R 型的 IMM_I 仍生成原始未选用值。SW/BEQ 的原始 `instr[11:7]` 仍存在，但 reg_write=0，不误作 rd 提交。对 x0 的合法算术 / LW，rf_we 仍为 1，由寄存器堆丢弃实际写入。
 
-## 控制与快照语义
+## 数据通路
 
-| RTL 信号 | 本轮数值 / 语义 |
-| --- | --- |
-| `reg_write`, `rf_we` | 有效 ADD/ADDI 正常提交时为 1；写 x0 时仍为 1，由寄存器堆丢弃写入 |
-| `alu_op`, `alu_a_sel`, `imm_sel`, `wb_sel` | 均为 0，与宏编码一致 |
-| `alu_b_imm` | ADDI=1，ADD=0 |
-| `mem_read`, `mem_write`, `dmem_we`, `dmem_wstrb` | 均为 0 |
-| `rs2_data` | 始终按原始 `instr[24:20]` 读取，包含 ADDI 中未被 ALU 选中的值 |
-| `imm` | 始终按 IMM_I 符号扩展，包含 ADD 中未被选中的原始字段 |
-| `pc_value`, `pc_plus4`, `next_pc`, `imem_addr`, `imem_rdata` | 执行前 PC、PC+4、下一 PC、取指地址、真实机器码 |
-| `alu_a`, `alu_b`, `alu_result`, `wb_data` | 真实操作数、低 32 位加法结果、写回值 |
+- 公共取指 / 译码：`pc_value → imem_addr → imem_rdata → decoder / imm_gen / regfile`。
+- 算术：`rs1_data → alu_a`；`imm` 或 `rs2_data → ALU B MUX → alu_b → alu_result → WB → wb_data → regfile`。
+- 访存：`rs1_data + imm → alu_result → dmem_addr`；SW 从 `rs2_data → dmem_wdata` 写入，LW 从 `dmem_rdata → load_data → WB_MEM → wb_data` 写回。
+- 分支：`rs1_data / rs2_data → branch_unit → branch_taken`；`redirect = branch && branch_taken`（本轮 jump=0），`target = pc_value + imm`，选择 target 或 pc_plus4 作为 next_pc。
+- PC 反馈独立于寄存器写回总线；BEQ 使用独立比较器，不依赖 ALU SUB。本轮所有 ALU A 选择均为 SRC_RS1，暂不画完整三选一 ALU A MUX。
 
-`write.committed` 是软件解释字段，不是 RTL 信号。`CpuState.status/reason`、`retired`、Trace id、active modules、五个观察阶段同样是宿主教学元数据。
+数据线连接仅覆盖五条指令的关键扇出，非完整网表。几何交叉不表示额外连接。虚线表示控制，蓝 / 浅金 / 青绿区分数据、控制和写回。
 
-单次 `core.step()` 计算组合结果并提交一个架构边沿。可视化观察取指、译码、执行、访存、写回五个阶段，是对同一快照的慢动作讲解；没有五个 CPU 时钟，也没有五级流水线。UI 寄存器与 PC 显示已提交状态，3D 标签显示当前快照阶段的数据。回放旧快照不回滚或写入架构状态。
+## 数据内存与异常
 
-## 有意存在的差异与未覆盖范围
+`memory.ts` 默认 1024 字节，小端、地址按字节。LW/SW 要求 4 字节对齐；正确 SW 的 `dmem_we=1`、`dmem_wstrb=1111`，LW 为 0 / 0000。总线按 RTL 保留原始地址、按低位移位的写数据、对齐字读数及 load_data；不活跃总线仍可含未使用的数值。外部内存未映射地址的非访存读总线置 0，是宿主设备约定。
 
-- 软件仅执行 ADDI/ADD。其他合法 RV32I 指令会报告“Sprint 01 尚不支持”，**不表示 RTL 将其判为非法**。
-- PC 越过已加载程序即停止是宿主策略。RTL 没有程序结束检测，仍依赖外部指令存储器。
-- 已实现软件未对齐 / 不支持指令停止，但没有完整映射 `trap`, `trap_cause`, `fault` 的优先级及复位门控，不声称等价。
-- 暂未映射 `branch_taken`, `redirect`, `target`, `jump`, `jalr`、完整分支与跳转、访存对齐、字节车道、load/store、ECALL/EBREAK/FENCE。
-- 连续执行硬上限 1000 条。LW、SW、BEQ 只预留类型和内存接口，尚不可执行。
-- 原始 RTL/ZIP 保留本地且被 Git 忽略，Web 工程可独立运行。未来若需要共享 RTL，另行确认授权与许可，推荐通过独立参考仓库固定版本。
+故障在提交前验证：当前指令地址未对齐 cause=0；BEQ 成立且目标未对齐 cause=0；LW 未对齐 cause=4；SW 未对齐 cause=6。后者对应 RTL 门控语义，错误指令保持 PC、寄存器、内存和 retired 不变。BEQ 不成立不检查未选中的目标对齐。
 
-## 原件 SHA-256（实现前基线）
+有限内存越界由宿主检查，在 `CpuState.fault.source='host'` 中表达，不生成虚构 RTL 信号或 RISC-V Trap cause；顶层没有外部访存错误输入。尚未支持的机器码同样作为软件子集限制停止，不能据此声称 RTL 认为非法。此版本未完整实现 trap 锁存、复位周期门控、CSR 或异常向量。
+
+## Trace 与可视化语义
+
+`SignalSnapshot` 的信号名可追溯到顶层或译码 / 宏；`transfers` 中源、目的、连接 id、因果序号、语义颜色是 **软件教学元数据**。连接 id 可以不同于信号名，例如 target 连接把 pc_value 送入 Next PC 教学分组的目标加法器。mem_control 来自 decoder 的 mem_read / mem_write，实际门控写使能另以 dmem_we / dmem_wstrb 记录。
+
+每个 transfer.value 直接取自相应 snapshot 字段。路线几何只能决定运动路径与时间，不得计算 CPU 结果。一次 core.step 提交一个架构边沿；五个观察阶段及各线路的因果顺序是慢动作隐喻，不代表五个时钟、流水线或精确门延迟。
+
+`write.committed`、`memoryAccess`、CpuState.status/reason/fault、retired、Trace id、阶段和 PresentationClock 都不是 RTL 端口。历史快照不可变，回放、暂停、继续或跳转不会回滚或重写当前架构状态。程序越过加载范围即停止和 1000 条限制也是宿主策略。
+
+## 未覆盖
+
+完整 RV32I、其他分支 / 跳转、JALR、字节 / 半字访存、ECALL/EBREAK/FENCE、完整 Trap 优先级及复位门控。RTL 原件保留本地且被 Git 忽略，Web 可独立运行；共享 RTL 需另行确认授权。
+
+## 原件 SHA-256（Sprint 01 基线，Sprint 02 复核一致）
 
 ```text
 alu.v         19ACA92F1D115498629CB416077F4A2C951A5FF9A048D3F2B42EA2A0C2536B69

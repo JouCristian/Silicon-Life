@@ -15,3 +15,16 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+      - name: Upload browser verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-verification-${{ github.event_name }}
+          path: |
+            test-results/
+            .local/sprint02-motion-samples.json
+            .local/sprint02-flow-samples.json
+            .local/sprint021-*.png
+            .local/sprint021-native-zoom.json
+          include-hidden-files: true
+          retention-days: 7

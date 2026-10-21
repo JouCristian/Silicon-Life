@@ -1,123 +1,148 @@
-import { Component, Suspense, useEffect, useRef, useState, type ComponentRef, type ReactNode } from 'react'
+import { Component, Suspense, useEffect, useMemo, useRef, useState, type ComponentRef, type ReactNode, type RefObject } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Edges, Html, Line, OrbitControls } from '@react-three/drei'
-import { Group, Vector3 } from 'three'
-import { useReducedMotion } from 'motion/react'
+import { Group, Mesh, PerspectiveCamera, Vector3, type Material } from 'three'
+import { useMotionPreference } from '../motion/useMotionPreference'
 import { hex, i32 } from '../core/isa'
-import type { ModuleId, Phase } from '../core/trace/types'
+import type { ModuleId } from '../core/trace/types'
 import { useLabView } from '../stores/useLabStore'
+import { MOTION, smoothstep, springStep, type SpringState } from '../motion/design'
+import { presentationClock, timelineFor } from '../motion/timeline'
+import { MODULES, POSITIONS, WIRES } from './topology'
+import { SignalFlow } from './SignalFlow'
+import { ModuleBlock } from './ModuleBlock'
 
-type Point = [number, number, number]
-const INK = '#a8afb9'
-const BLUE = '#91bcff'
-const POSITIONS: Record<ModuleId, Point> = {
-  pc: [-6.6, 0, 0], imem: [-4, 0, 0], decoder: [-1.3, 2.1, 0],
-  regfile: [-1.3, 0, 0], imm: [-1.3, -2.2, 0], mux: [1.25, -1.5, 0],
-  alu: [3.6, 0, 0], wb: [6.1, 0, 0],
-}
-const MODULES: { id: ModuleId; title: string; sub: string; width: number }[] = [
-  { id: 'pc', title: 'PC', sub: '程序计数器', width: 1.25 },
-  { id: 'imem', title: 'Instruction', sub: '指令存储器', width: 2.25 },
-  { id: 'decoder', title: 'Decoder', sub: '控制译码', width: 2.1 },
-  { id: 'regfile', title: 'Register File', sub: '32 × 32 bit', width: 2.1 },
-  { id: 'imm', title: 'Imm Gen', sub: '立即数生成', width: 2.1 },
-  { id: 'mux', title: 'MUX', sub: 'ALU B 选择', width: 1.2 },
-  { id: 'alu', title: 'ALU', sub: '算术逻辑单元', width: 1.9 },
-  { id: 'wb', title: 'WB', sub: '写回选择', width: 1.2 },
-]
-interface WireDef { id: string; points: Point[]; phases: Phase[]; condition?: 'ADD' | 'ADDI' }
-const WIRES: WireDef[] = [
-  { id: 'imem_addr', points: [[-5.97, 0, 0], [-5.13, 0, 0]], phases: ['fetch'] },
-  { id: 'instr_rf', points: [[-2.87, 0, 0], [-2.35, 0, 0]], phases: ['decode'] },
-  { id: 'instr_decode', points: [[-3, .15, 0], [-2.65, .15, 0], [-2.65, 2.1, 0], [-2.35, 2.1, 0]], phases: ['decode'] },
-  { id: 'instr_imm', points: [[-3, -.15, 0], [-2.65, -.15, 0], [-2.65, -2.2, 0], [-2.35, -2.2, 0]], phases: ['decode'], condition: 'ADDI' },
-  { id: 'alu_a', points: [[-.25, .2, 0], [2.65, .2, 0]], phases: ['execute'] },
-  { id: 'rs2_data', points: [[-.25, -.25, 0], [.25, -.25, 0], [.25, -1.3, 0], [.65, -1.3, 0]], phases: ['execute'], condition: 'ADD' },
-  { id: 'imm', points: [[-.25, -2.2, 0], [.25, -2.2, 0], [.25, -1.7, 0], [.65, -1.7, 0]], phases: ['execute'], condition: 'ADDI' },
-  { id: 'alu_b', points: [[1.85, -1.5, 0], [2.2, -1.5, 0], [2.2, -.25, 0], [2.65, -.25, 0]], phases: ['execute'] },
-  { id: 'alu_result', points: [[4.55, 0, 0], [5.5, 0, 0]], phases: ['execute', 'writeback'] },
-  { id: 'wb_data', points: [[6.1, -.7, 0], [6.1, -3.45, 0], [-2.45, -3.45, 0], [-2.45, -1, 0], [-1.3, -1, 0], [-1.3, -.7, 0]], phases: ['writeback'] },
-  { id: 'next_pc', points: [[-6.6, .7, 0], [-6.6, 3.5, 0], [-5.4, 3.5, 0], [-5.4, 1.15, 0], [-6.3, 1.15, 0], [-6.3, .7, 0]], phases: ['writeback'] },
-  { id: 'alu_b_imm', points: [[-.25, 2.1, 0], [1.25, 2.1, 0], [1.25, -.8, 0]], phases: ['decode'] },
-]
+type Anchor = RefObject<HTMLDivElement | null>
+const SPRING = (): SpringState => ({ position: 0, velocity: 0 })
 
-function Packet({ points, visible, reduced }: { points: Point[]; visible: boolean; reduced: boolean }) {
-  const ref = useRef<Group>(null)
-  const path = points.map(p => new Vector3(p[0], p[1], .13))
-  const lengths = path.slice(1).map((p, i) => p.distanceTo(path[i]))
-  const total = lengths.reduce((a, b) => a + b, 0)
+function IdlePulse({ visible, reduced }: { visible: boolean; reduced: boolean }) {
+  const dot = useRef<Mesh>(null)
   useFrame(({ clock }) => {
-    if (!ref.current || !visible) return
-    let distance = (reduced ? .5 : (clock.elapsedTime * .8) % 1) * total
-    for (let i = 0; i < lengths.length; i++) {
-      if (distance <= lengths[i]) { ref.current.position.lerpVectors(path[i], path[i + 1], distance / lengths[i]); break }
-      distance -= lengths[i]
-    }
+    if (!dot.current) return
+    dot.current.visible = visible && !reduced
+    const t = (clock.elapsedTime * .12) % 1
+    dot.current.position.set(-2.9 + 5.8 * t, .6, 1.53)
   })
-  return <group ref={ref} visible={visible}><mesh><sphereGeometry args={[.055, 10, 8]} /><meshBasicMaterial color={BLUE} /></mesh></group>
+  return <group visible={visible}><Line points={[[-2.9, .6, 1.52], [2.9, .6, 1.52]]} color="#6a7888" transparent opacity={.25} lineWidth={1} /><mesh ref={dot}><sphereGeometry args={[.035, 10, 8]} /><meshBasicMaterial color="#d5e0ed" /></mesh></group>
 }
 
-function ViewControls({ version, open, reduced }: { version: number; open: boolean; reduced: boolean }) {
-  const ref = useRef<ComponentRef<typeof OrbitControls>>(null)
+function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef: Anchor }) {
+  const { scene, enter, trace, phase, viewVersion, cpu, playbackEpoch, inspection } = useLabView()
+  const reduced = useMotionPreference()
   const { camera, size } = useThree()
-  const target = useRef(new Vector3(10, -15, 20))
-  const settling = useRef(true)
-  useEffect(() => {
-    camera.up.set(0, 0, 1)
-    // Keep the teaching plane nearly frontal so labels and buses remain legible.
-    const distance = Math.max(17, 27 / (size.width / size.height))
-    target.current.set(...(open ? [.5, -distance * .35, distance] : [10, -15, 20]) as Point)
-    settling.current = true
-    ref.current?.target.set(0, 0, 0)
-  }, [camera, version, open, size.width, size.height])
-  useFrame((_, dt) => {
-    if (!settling.current) return
-    camera.position.lerp(target.current, reduced ? 1 : 1 - Math.exp(-5 * dt))
-    ref.current?.update()
-    if (camera.position.distanceTo(target.current) < .01) settling.current = false
-  })
-  return <OrbitControls ref={ref} makeDefault enableDamping dampingFactor={.09} minDistance={10} maxDistance={40} minPolarAngle={.1} maxPolarAngle={Math.PI / 2.15} onStart={() => { settling.current = false }} />
-}
-
-function World({ labelHost }: { labelHost: HTMLDivElement }) {
-  const { scene, enter, trace, phase, viewVersion, cpu } = useLabView()
-  const reduced = !!useReducedMotion()
-  const board = useRef<Group>(null)
-  const cover = useRef<Group>(null)
+  const spatial = useRef<Group>(null), model = useRef<Group>(null), board = useRef<Group>(null), cover = useRef<Group>(null)
   const blocks = useRef<(Group | null)[]>([])
-  const progress = useRef(0)
-  const velocity = useRef(0)
-  const [revealed, setRevealed] = useState(false)
+  const controls = useRef<ComponentRef<typeof OrbitControls>>(null)
+  const mark = useRef<HTMLDivElement>(null)
+  const reveal = useRef(SPRING())
+  const anchorX = useRef(SPRING()), anchorY = useRef(SPRING()), scale = useRef({ position: 1, velocity: 0 })
+  const escapeX = useRef({ position: 18, velocity: 0 }), escapeY = useRef({ position: 14, velocity: 0 })
+  const anchor = useRef({ x: .4, y: 0, width: 800, height: 600 })
+  const initialized = useRef(false), autoView = useRef(true)
   const open = scene === 'workbench'
-  const active = trace?.phases[phase] ?? []
-  useEffect(() => {
-    document.body.style.cursor = ''
-    if (!open) setRevealed(false)
-    return () => { document.body.style.cursor = '' }
-  }, [open])
+  const timeline = useMemo(() => timelineFor(trace, phase), [trace, phase])
+  const cameraHome = useMemo(() => new Vector3(10, -15, 23), [])
+  const cameraPlane = useMemo(() => new Vector3(.5, -9, 28), [])
+  const origin = useMemo(() => new Vector3(), []), projected = useMemo(() => new Vector3(), [])
 
-  useFrame((_, delta) => {
-    const target = open ? 1 : 0
-    const dt = Math.min(delta, .033)
-    // Critically damped spring: continuous position, no layout work per frame.
-    velocity.current += ((target - progress.current) * 48 - velocity.current * 14) * dt
-    progress.current = reduced ? target : Math.max(0, Math.min(1, progress.current + velocity.current * dt))
-    const t = progress.current
+  useEffect(() => {
+    let previousScroll = window.scrollY
+    const measure = () => {
+      const rect = anchorRef.current?.getBoundingClientRect()
+      if (rect) anchor.current = { x: (rect.x + rect.width / 2) / size.width * 2 - 1, y: 1 - (rect.y + rect.height / 2) / size.height * 2, width: rect.width, height: rect.height }
+    }
+    measure()
+    const followScroll = () => {
+      const delta = window.scrollY - previousScroll
+      previousScroll = window.scrollY
+      // Document scrolling is a coordinate-system translation, not a scene transition.
+      // Follow it 1:1 at rest so a fast scroll never leaves the model trailing offscreen.
+      if (initialized.current && Math.abs(reveal.current.position - (open ? 1 : 0)) < .005) anchorY.current.position += 2 * delta / size.height
+      measure()
+    }
+    const observer = new ResizeObserver(measure)
+    if (anchorRef.current) observer.observe(anchorRef.current)
+    window.addEventListener('scroll', followScroll, { passive: true })
+    window.addEventListener('resize', measure, { passive: true })
+    return () => { observer.disconnect(); window.removeEventListener('scroll', followScroll); window.removeEventListener('resize', measure) }
+  }, [anchorRef, scene, size.width, size.height])
+  useEffect(() => { autoView.current = true; document.body.style.cursor = ''; return () => { document.body.style.cursor = '' } }, [scene, viewVersion])
+
+  useFrame(({ clock }, dt) => {
+    if (controls.current) controls.current.dampingFactor = 1 - Math.exp(-MOTION.orbitDamping * dt)
+    const tState = reveal.current
+    if (reduced) { tState.position = open ? 1 : 0; tState.velocity = 0 }
+    else springStep(tState, open ? 1 : 0, dt)
+    const t = tState.position
+    if (autoView.current) {
+      camera.position.lerp(open ? cameraPlane : cameraHome, reduced ? 1 : 1 - Math.exp(-MOTION.cameraResponse * dt))
+      controls.current?.target.lerp(origin, reduced ? 1 : 1 - Math.exp(-MOTION.cameraResponse * dt))
+      controls.current?.update()
+      if (camera.position.distanceTo(open ? cameraPlane : cameraHome) < .001 && (controls.current?.target.length() ?? 0) < .001) autoView.current = false
+    }
+    camera.updateMatrixWorld()
+    const distance = cameraHome.length() * (1 - t) + cameraPlane.length() * t
+    const halfHeight = distance * Math.tan(40 * Math.PI / 360)
+    const ppu = size.height / (2 * halfHeight)
+    const targetScale = Math.min(anchor.current.width / (open ? 19 : 11.5), anchor.current.height / (open ? 13.5 : 11.5)) / ppu
+    if (!initialized.current || reduced) {
+      anchorX.current.position = anchor.current.x; anchorY.current.position = anchor.current.y; scale.current.position = targetScale
+      initialized.current = true
+    } else {
+      springStep(anchorX.current, anchor.current.x, dt, MOTION.anchorOmega)
+      springStep(anchorY.current, anchor.current.y, dt, MOTION.anchorOmega)
+      springStep(scale.current, targetScale, dt, MOTION.anchorOmega)
+    }
+    if (spatial.current) {
+      // Shift the optical center, keeping the world origin as OrbitControls' pivot.
+      // Canvas size never changes between scenes; neither rotation nor zoom is cancelled.
+      if (camera instanceof PerspectiveCamera) camera.setViewOffset(size.width, size.height, -anchorX.current.position * size.width / 2, anchorY.current.position * size.height / 2, size.width, size.height)
+      spatial.current.scale.setScalar(scale.current.position)
+      spatial.current.getWorldPosition(projected).project(camera)
+      const root = labelHost.parentElement!
+      root.dataset.reveal = t.toFixed(4)
+      root.dataset.reducedMotion = String(reduced)
+      root.dataset.compactLabels = String(anchor.current.height < 280)
+      root.dataset.mediumLabels = String(anchor.current.height >= 280 && anchor.current.height < 360)
+      root.dataset.renderTime = clock.elapsedTime.toFixed(4)
+      root.dataset.camera = camera.position.toArray().map(n => n.toFixed(5)).join(',')
+      root.dataset.anchorX = ((projected.x + 1) / 2 * size.width).toFixed(2)
+      root.dataset.anchorY = ((1 - projected.y) / 2 * size.height).toFixed(2)
+      const rect = anchorRef.current?.getBoundingClientRect()
+      if (rect) root.style.clipPath = `inset(${Math.max(0, rect.top)}px ${Math.max(0, size.width - rect.right)}px ${Math.max(0, size.height - rect.bottom)}px ${Math.max(0, rect.left)}px)`
+      const flowTime = presentationClock.read(playbackEpoch, inspection, timeline.duration)
+      root.dataset.flowTime = flowTime.toFixed(4)
+      root.dataset.flowRoutes = timeline.transfers.map(route => `${route.id}:${Math.max(0, Math.min(1, (flowTime - route.start) / (route.end - route.start))).toFixed(3)}`).join(',')
+    }
+    if (model.current) { model.current.position.z = reduced ? 0 : Math.sin(clock.elapsedTime * .65) * .09 * (1 - t); model.current.rotation.z = reduced ? 0 : Math.sin(clock.elapsedTime * .19) * .012 * (1 - t) }
     if (board.current) { board.current.scale.setScalar(.42 + .58 * t); board.current.position.z = -1.2 + 1.2 * t }
     if (cover.current) {
-      cover.current.visible = t < .995
+      // Lift clear of the board before separating, then pass beyond the current
+      // projected viewport, including the user's zoom. Fade only during exit.
+      const zoomPpu = size.height / (2 * camera.position.length() * Math.tan(40 * Math.PI / 360)) * scale.current.position
+      springStep(escapeX.current, Math.max(18, anchor.current.width / (2 * zoomPpu) + 5), dt)
+      springStep(escapeY.current, Math.max(14, anchor.current.height / (2 * zoomPpu) + 5), dt)
+      const separation = smoothstep(.07, .96, t)
+      const opacity = 1 - smoothstep(.48, .94, t)
+      cover.current.visible = opacity > .00001
       cover.current.children.forEach((child, i) => {
-        child.position.set((i % 2 === 0 ? -1 : 1) * (1.8 + t * 11), (i < 2 ? -1 : 1) * (1.8 + t * 8), 1.15 + t * 6)
+        child.position.set((i % 2 === 0 ? -1 : 1) * (1.8 + separation * escapeX.current.position), (i < 2 ? -1 : 1) * (1.8 + separation * escapeY.current.position), 1.15 + smoothstep(0, .28, t) * 4 + t * 2)
         child.rotation.set(t * .2 * (i % 2 ? 1 : -1), t * .35, 0)
+        child.traverse(object => {
+          if (!('material' in object)) return
+          const materials = Array.isArray(object.material) ? object.material : [object.material]
+          for (const material of materials as Material[]) {
+            material.transparent = true; material.depthWrite = false; material.opacity = opacity
+          }
+        })
       })
+      labelHost.parentElement!.dataset.coverOpacity = opacity.toFixed(4)
+      labelHost.parentElement!.dataset.coverDistance = cover.current.children.map(child => child.position.length().toFixed(3)).join(',')
     }
-    blocks.current.forEach((block, i) => {
-      if (!block) return
-      const p = POSITIONS[MODULES[i].id]
-      block.position.set(p[0] * (.32 + .68 * t), p[1] * (.32 + .68 * t), .35)
-    })
-    if (t > .97 && open && !revealed) setRevealed(true)
-  })
+    blocks.current.forEach((block, i) => { const p = POSITIONS[MODULES[i].id]; block?.position.set(p[0] * (.32 + .68 * t), p[1] * (.32 + .68 * t), .35) })
+    spatial.current?.updateMatrixWorld(true)
+    if (mark.current) mark.current.style.opacity = String(1 - smoothstep(.02, .3, t))
+  }, -.5) // After OrbitControls (-1), before Drei Html projection (0).
 
   const valueFor = (id: ModuleId) => {
     const s = trace?.signals
@@ -125,65 +150,41 @@ function World({ labelHost }: { labelHost: HTMLDivElement }) {
     switch (id) {
       case 'pc': return hex(phase === 'writeback' ? s.next_pc : s.pc_value)
       case 'imem': return hex(s.imem_rdata)
-      case 'decoder': return `alu_b_imm = ${s.alu_b_imm}`
+      case 'decoder': return `B_imm=${s.alu_b_imm} · WE=${s.reg_write}`
       case 'imm': return `${i32(s.imm)}`
-      case 'regfile': return phase === 'writeback' ? `x${trace.instruction.rd} ← ${i32(s.wb_data)}` : `x${trace.instruction.rs1} → ${i32(s.rs1_data)}`
+      case 'regfile': return phase === 'writeback' && s.reg_write ? `x${trace.write.rd} ← ${i32(s.wb_data)}` : `x${trace.instruction.rs1} → ${i32(s.rs1_data)}`
       case 'mux': return `${i32(s.alu_b)}`
       case 'alu': return `${i32(s.alu_a)} + ${i32(s.alu_b)} = ${i32(s.alu_result)}`
       case 'wb': return `${i32(s.wb_data)}`
+      case 'dmem': return trace.memoryAccess ? `${trace.memoryAccess.kind === 'load' ? 'R' : 'W'} [${s.dmem_addr}] = ${i32(trace.memoryAccess.data)}` : '未访问'
+      case 'branch': return s.branch ? `${i32(s.rs1_data)} = ${i32(s.rs2_data)} ? ${s.branch_taken}` : '未参与'
+      case 'nextpc': return hex(s.next_pc)
     }
   }
 
   return <>
-    <ambientLight intensity={1.8} />
-    <directionalLight position={[4, -5, 10]} intensity={2} />
-    <group ref={board}>
-      <mesh position={[0, 0, -.28]}>
-        <boxGeometry args={[15.7, 8.6, .26]} />
-        <meshStandardMaterial color="#11161d" roughness={.85} />
-        <Edges color="#404854" />
-      </mesh>
-      {Array.from({ length: 4 }, (_, i) => <mesh key={i} position={[i % 2 ? 7.5 : -7.5, i < 2 ? -3.9 : 3.9, -.1]}><cylinderGeometry args={[.09, .09, .03, 16]} /><meshBasicMaterial color="#6d7681" /></mesh>)}
-      {WIRES.map(wire => {
-        const on = revealed && !!trace && wire.phases.includes(phase) && (!wire.condition || trace.instruction.op === wire.condition)
-        return <group key={wire.id}>
-          <Line points={wire.points.map(p => [p[0], p[1], .1] as Point)} color={on ? BLUE : '#424b59'} lineWidth={on ? 2 : 1} dashed={wire.id === 'alu_b_imm'} dashSize={.12} gapSize={.08} />
-          <Packet points={wire.points} visible={on} reduced={reduced} />
-        </group>
-      })}
-      {MODULES.map((module, i) => {
-        const on = revealed && active.includes(module.id)
-        return <group key={module.id} ref={el => { blocks.current[i] = el }}>
-          <mesh>
-            <boxGeometry args={[module.width, 1.3, .48]} />
-            <meshStandardMaterial color={on ? '#1c3554' : '#1b222b'} roughness={.65} metalness={.2} />
-            <Edges color={on ? BLUE : INK} />
-          </mesh>
-          <mesh position={[0, 0, .25]}><boxGeometry args={[module.width - .15, 1.14, .025]} /><meshBasicMaterial color={on ? '#172d47' : '#151c25'} wireframe /></mesh>
-          {revealed && <Html portal={{ current: labelHost }} center position={[0, 0, .4]} zIndexRange={[8, 0]} style={{ pointerEvents: 'none' }}>
-            <div className={`module-label ${on ? 'active' : ''}`}>
-              <b>{module.title}</b><span>{module.sub}</span><code>{valueFor(module.id)}</code>
-            </div>
-          </Html>}
-        </group>
-      })}
-      {revealed && <>
-        <Html portal={{ current: labelHost }} center position={[-5.7, 3.15, .1]} zIndexRange={[7, 0]} style={{ pointerEvents: 'none' }}><span className="wire-label">PC + 4</span></Html>
-        <Html portal={{ current: labelHost }} center position={[3.8, -3.6, .1]} zIndexRange={[7, 0]} style={{ pointerEvents: 'none' }}><span className="wire-label">wb_data · 写回总线</span></Html>
-      </>}
-    </group>
-    <group ref={cover} onClick={event => { event.stopPropagation(); if (!open) enter() }} onPointerOver={() => { if (!open) document.body.style.cursor = 'pointer' }} onPointerOut={() => { document.body.style.cursor = '' }}>
-      {[0, 1, 2, 3].map(i => <group key={i} position={[i % 2 === 0 ? -1.8 : 1.8, i < 2 ? -1.8 : 1.8, 1.15]}>
-        <mesh><boxGeometry args={[3.6, 3.6, .7]} /><meshStandardMaterial color="#14191f" transparent opacity={.92} /><Edges color="#a8afb9" /></mesh>
-        <mesh position={[0, 0, .36]}><boxGeometry args={[3.6, 3.6, .01, 6, 6]} /><meshBasicMaterial color="#626c78" wireframe /></mesh>
-        {Array.from({ length: 8 }, (_, n) => <group key={n}>
-          <mesh position={[i % 2 === 0 ? -2 : 2, -1.55 + n * .44, -.1]}><boxGeometry args={[.4, .14, .18]} /><meshBasicMaterial color="#39414d" /><Edges color="#b0b6bf" /></mesh>
-          <mesh position={[-1.55 + n * .44, i < 2 ? -2 : 2, -.1]}><boxGeometry args={[.14, .4, .18]} /><meshBasicMaterial color="#39414d" /><Edges color="#b0b6bf" /></mesh>
+    <ambientLight intensity={1.3} /><directionalLight position={[4, -5, 10]} intensity={1.8} />
+    <group ref={spatial}><group ref={model}>
+      <group ref={board}>
+        <mesh position={[0, 0, -.28]}><boxGeometry args={[16.3, 10.2, .26]} /><meshStandardMaterial color="#141d28" roughness={.85} /><Edges color="#526171" /></mesh>
+        {Array.from({ length: 4 }, (_, i) => <mesh key={i} position={[i % 2 ? 7.7 : -7.7, i < 2 ? -4.7 : 4.7, -.1]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[.09, .09, .03, 12]} /><meshBasicMaterial color="#8594a6" /></mesh>)}
+        {WIRES.map(wire => <SignalFlow key={wire.id} wire={wire} transfer={timeline.transfers.find(t => t.id === wire.id)} timeline={timeline} epoch={playbackEpoch} inspection={inspection} reduced={reduced} />)}
+        {MODULES.map((module, i) => <group key={module.id} ref={el => { blocks.current[i] = el }}><ModuleBlock module={module} labelHost={labelHost} value={valueFor(module.id)} reveal={reveal.current} timeline={timeline} epoch={playbackEpoch} inspection={inspection} reduced={reduced} open={open} /></group>)}
+      </group>
+      <group ref={cover} onClick={event => { event.stopPropagation(); if (!open) enter() }} onPointerOver={() => { if (!open) document.body.style.cursor = 'pointer' }} onPointerOut={() => { document.body.style.cursor = '' }}>
+        {[0, 1, 2, 3].map(i => <group key={i}>
+          <mesh><boxGeometry args={[3.6, 3.6, .7]} /><meshStandardMaterial color="#19212b" roughness={.6} /><Edges color="#b8c2ce" /></mesh>
+          <mesh position={[0, 0, .36]}><boxGeometry args={[3.6, 3.6, .01, 6, 6]} /><meshBasicMaterial color="#738194" wireframe /></mesh>
+          {Array.from({ length: 8 }, (_, n) => <group key={n}>
+            <mesh position={[i % 2 === 0 ? -2 : 2, -1.55 + n * .44, -.1]}><boxGeometry args={[.4, .14, .18]} /><meshBasicMaterial color="#39414d" /><Edges color="#b0b6bf" /></mesh>
+            <mesh position={[-1.55 + n * .44, i < 2 ? -2 : 2, -.1]}><boxGeometry args={[.14, .4, .18]} /><meshBasicMaterial color="#39414d" /><Edges color="#b0b6bf" /></mesh>
+          </group>)}
         </group>)}
-      </group>)}
-    </group>
-    {!open && <Html portal={{ current: labelHost }} center position={[0, 0, 1.6]} zIndexRange={[8, 0]} style={{ pointerEvents: 'none' }}><div className="die-mark">芯生<span>RV32I / SILICON LIFE</span></div></Html>}
-    <ViewControls version={viewVersion} open={open} reduced={reduced} />
+      </group>
+      <IdlePulse visible={!open} reduced={reduced} />
+      <Html portal={{ current: labelHost }} center position={[0, 0, 1.6]} zIndexRange={[8, 0]} style={{ pointerEvents: 'none' }}><div ref={mark} className="die-mark" aria-hidden={open}>芯生<span>RV32I / SILICON LIFE</span></div></Html>
+    </group></group>
+    <OrbitControls ref={controls} domElement={anchorRef.current ?? undefined} makeDefault enableDamping dampingFactor={.075} minDistance={18} maxDistance={44} minPolarAngle={.12} maxPolarAngle={Math.PI / 2.15} onStart={() => { autoView.current = false }} />
   </>
 }
 
@@ -193,14 +194,11 @@ class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean
   render() { return this.state.failed ? <div className="scene-fallback">三维场景暂不可用。仍可通过程序、信号面板与寄存器观察完整执行结果。</div> : this.props.children }
 }
 
-export default function CpuScene() {
+export default function CpuScene({ anchorRef }: { anchorRef: Anchor }) {
   const [labelHost, setLabelHost] = useState<HTMLDivElement | null>(null)
-  return <SceneBoundary><Suspense fallback={<div className="scene-fallback">正在建立三维场景…</div>}>
-    <div className="scene-root">
-      <Canvas camera={{ position: [10, -15, 20], up: [0, 0, 1], fov: 40 }} dpr={[1, 1.75]} gl={{ antialias: true, alpha: true }} aria-label="可旋转的三维 CPU 数据通路" fallback={<div className="scene-fallback">如设备无法显示 WebGL 场景，可继续使用 CPU 操作与信号面板。</div>}>
-        {labelHost && <World labelHost={labelHost} />}
-      </Canvas>
-      <div ref={setLabelHost} className="scene-label-host" />
-    </div>
-  </Suspense></SceneBoundary>
+  return <SceneBoundary><Suspense fallback={<div className="scene-fallback">正在建立三维场景…</div>}><div className="scene-root" data-testid="scene-root">
+    <Canvas eventSource={anchorRef} eventPrefix="client" camera={{ position: [10, -15, 23], up: [0, 0, 1], fov: 40 }} dpr={[1, 1.5]} gl={{ antialias: true, alpha: true }} aria-label="可旋转的三维 CPU 数据通路" fallback={<div className="scene-fallback">如设备无法显示 WebGL 场景，可继续使用 CPU 操作与信号面板。</div>}>
+      {labelHost && <World labelHost={labelHost} anchorRef={anchorRef} />}
+    </Canvas><div ref={setLabelHost} className="scene-label-host" />
+  </div></Suspense></SceneBoundary>
 }

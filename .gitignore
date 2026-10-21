@@ -13,3 +13,4 @@ playwright-report/
 rtl/
 package/
 .local/
+.vite/

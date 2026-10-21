@@ -1,5 +1,13 @@
 # AI 使用记录
 
+## 2026-10-22 · Sprint 02.1
+
+- 用户贡献：工作台固定视口、分区滚动、三条分隔线、事件边界、单步传递、速度档位、盖板离场及物理反馈的明确验收反馈。要求继续本地分支，禁止本轮 Push / Merge / 部署。
+- Codex 独立实施，未调用子 agent、v0 或新的视觉框架。读取现有架构、设计、场景、播放与测试；参考 impeccable 产品指导，以及 Apple HIG Layout 官方 JSON 正文中的内容分组、尺寸适配与对齐原则。
+- 实现 WorkbenchLayout、原生滚动与可访问分隔线；限制 R3F / OrbitControls 事件目标；在已有真实 Trace 上增加 TransferPlayback 与倍速，保持 Core 不变。优化连续光头、衰减尾迹、解析阻尼接收反馈和盖板抬升 / 分离 / 渐隐。
+- 新增 Store/时钟语义测试、布局与事件浏览器验收、原生页面缩放检查；保留原有 CPU 和程序结果基准。遇到原生缩放下自动化截图挂起，改为 DPR/几何/键盘真实执行证据，未用静态图声称性能达标。
+- 更新 README、设计、架构和验证记录。RTL 原件哈希保持一致，无新指令、图片、音视频或生成式资产。测试通过后仅创建本地提交，等待用户验收。
+
 ## 2026-10-21 · Sprint 01
 
 - 工具：Codex，用户指定主工程师与技术集成负责人。
@@ -8,6 +16,20 @@
 - 视觉指导：读取本地 `impeccable` 与 `design-taste-frontend` 文档，采用适用的工具界面规则；项目初始化策略与色彩遵循用户明确要求。未找到用户提及的 `swust-apple-keynote` Skill，未声称调用。
 - Sites：读取本地工作流，按用户要求执行 local-only，不注册或发布 Site。
 - 使用现成库：React、Vite、Tailwind、Three.js、React Three Fiber、Drei、Motion、Zustand、Vitest、Playwright。没有生成式图片、音频或视频资产。
-- 未调用或连接 v0；未创建远程仓库、Push 或部署。未改动原始 FPGA 文件。
+- Sprint 01 开发交付时未调用 v0、创建远程、Push 或部署，未改动 RTL。此后用户已将 Sprint 01 推送至 GitHub main（2026-10-22 已通过 fetch 确认），不再适用“没有 remote”的历史状态。
 - 验证记录见 `docs/VALIDATION.md`；没有 Testbench 或 Verilog 模拟器，不能声称联合仿真或完整 RTL 等价。
 - 后续需由人类审查 CPU 教学解释、RTL 映射及竞赛对 AI 创作过程的具体披露要求。此记录为实现贡献记录，不替代竞赛方表单。
+
+## 2026-10-22 · Sprint 02
+
+- 用户贡献：明确 A → B → C 顺序、三个真实程序、Apple 式空间连续性与信号传播的验收要求；提供现有 RTL。
+- Codex 独立实现，未调用其他 agent 或连接 v0。先读取 main 与 RTL、运行基线，再在 feat/sprint-02 扩展五条指令、不可变内存、分支、Trace 路径及测试；A 阶段通过后才实施 B。
+- B 阶段实现固定 Canvas、连续视点偏移、统一临界阻尼与速度规则、HTML 退出与焦点管理、沿真实路径的局部光段和端点响应、首页呼吸与克制光点、动态 reduced-motion 订阅。
+- 未找到 swust-apple-keynote；使用已读取的 impeccable product / animate 指导与用户明确要求。没有假称加载缺失 Skill，没有新增动画框架或生成式图片、音视频素材。
+- Playwright 记录正向、反向、中途反转、实际光段前进与暂停的逐帧数据，并保存中间截图。静态图不作为流畅性或真实 GPU 性能的唯一证据。
+- 没有修改 rtl/ 或原始 FPGA 工程；没有执行本轮 Push、PR、Merge 或部署。RTL 联合仿真仍未完成，数据内存越界明确标为宿主策略。
+
+### 用户确认后的 Git 交付与 CI 修复
+
+- 用户另行授权 Push、创建面向 main 的 PR 和修复远程 CI，明确禁止 Merge、Force Push 和 Sprint 03。已推送 feat/sprint-02 并创建 PR #1。
+- 忽略本地 .vite 依赖缓存，保留文件。读取真实 Actions 日志后定位 1.8 秒固定采样窗口在云端仅收集 10 帧的失败；改为在 10 秒上限内满足时长和至少 16 个不同渲染时间戳，保留连续性基准，增加 CI 帧记录上传。没有改动 CPU 或产品视觉行为。

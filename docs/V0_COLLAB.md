@@ -2,9 +2,9 @@
 
 ## 事实来源与流程
 
-GitHub 是唯一代码事实来源；当前只初始化本地 Git，未创建远程、未 Push、未连接 v0。v0 与 Codex 使用额度独立，不存在自动接力，用户通过 GitHub 手动分派和审查。
+GitHub 是唯一代码事实来源，远程仓库为 https://github.com/JouCristian/Silicon-Life。Sprint 01 已由用户推送到 main；Sprint 02 在本地 feat/sprint-02 分支，本轮 Push、PR、Merge 需用户确认，未连接 v0。v0 与 Codex 使用额度独立，不存在自动接力，用户通过 GitHub 手动分派和审查。
 
-1. 用户先审查本地 Sprint，再授权创建/关联 GitHub 远程与 Push。
+1. 用户审查本地 Sprint 后授权推送开发分支，远程已建立，不重复创建仓库。
 2. 在 v0 导入 GitHub 仓库，保留 React + Vite + TypeScript；若导入流程提出迁移 Next.js，停止迁移并由主工程师确认兼容方式。
 3. 每项任务建立独立分支，例如 `feat/v0-register-panel`。任务描述明确可改文件，避免与 Codex 分支冲突。
 4. v0 发起 PR；Codex 审查受保护文件、依赖、状态访问与可访问性。

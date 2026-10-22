@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#04070a" />
+    <meta
+      name="description"
+      content="芯生 Silicon Life — 可交互、可拆解的 RISC-V 单周期 CPU 3D 芯片视觉原型。"
+    />
+    <title>芯生 · Silicon Life — 3D 芯片结构原型</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23050a0f'/%3E%3Crect x='8' y='8' width='7' height='7' fill='%23dbe7ef'/%3E%3Crect x='18' y='8' width='7' height='7' fill='%23dbe7ef'/%3E%3Crect x='8' y='18' width='7' height='7' fill='%23dbe7ef'/%3E%3Crect x='18' y='18' width='7' height='7' fill='%235ab9ff'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="./style.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./vendor/three.module.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <main id="app">
+      <div id="stage" aria-label="芯生 RISC-V 芯片三维视图" aria-describedby="interactionHelp"></div>
+
+      <header class="masthead">
+        <div class="brandmark" aria-hidden="true">
+          <span></span><span></span><span></span><span class="is-live"></span>
+        </div>
+        <div class="brandcopy">
+          <span class="brand-cn">芯生</span>
+          <span class="brand-en">SILICON LIFE</span>
+        </div>
+        <span class="masthead-rule" aria-hidden="true"></span>
+        <span class="brand-meta">RISC-V&nbsp;&nbsp;/&nbsp;&nbsp;SINGLE CYCLE</span>
+      </header>
+
+      <div class="prototype-tag">
+        <span class="tag-index">01</span>
+        <span class="tag-copy">
+          3D STRUCTURE PROTOTYPE
+          <small>EXPERIMENTS / CHIP VIEW</small>
+        </span>
+      </div>
+
+      <aside class="info-panel" aria-label="芯片结构与模块信息">
+        <div class="panel-head">
+          <span class="eyebrow">STRUCTURE / 结构</span>
+          <span class="status-pill" id="statusPill">
+            <i aria-hidden="true"></i>
+            <span id="statusText">完整</span>
+          </span>
+        </div>
+
+        <div class="state-block">
+          <span class="micro-label">CHIP STATE</span>
+          <div class="state-line">
+            <span id="stateZh">完整芯片</span>
+            <span class="mono" id="stateEn">ASSEMBLED</span>
+          </div>
+        </div>
+
+        <div class="panel-rule"></div>
+
+        <div class="selected-block" aria-live="polite">
+          <span class="micro-label">SELECTED MODULE</span>
+          <div class="selected-title">
+            <span id="moduleCn">未选择模块</span>
+            <span class="mono" id="moduleEn">NO MODULE SELECTED</span>
+          </div>
+          <p id="moduleDesc">展开芯片，查看内部模块与结构层次。</p>
+        </div>
+
+        <div class="module-index" id="moduleIndex">
+          <div class="micro-row">
+            <span class="micro-label">MODULE INDEX</span>
+            <span class="index-count" id="indexCount">10</span>
+          </div>
+          <div class="module-list" id="moduleList" role="group" aria-label="内部模块索引"></div>
+        </div>
+
+        <div class="panel-foot">
+          <span class="panel-foot-line" aria-hidden="true"></span>
+          <span id="panelHint">点击芯片或下方按钮，开始结构拆解</span>
+        </div>
+      </aside>
+
+      <div class="bottom-ui">
+        <div class="interaction-help" id="interactionHelp">
+          <span><b>DRAG</b> 旋转</span>
+          <span><b>SCROLL</b> 缩放</span>
+          <span><b>RIGHT DRAG</b> 平移</span>
+        </div>
+
+        <div class="action-dock" role="toolbar" aria-label="芯片操作">
+          <button class="action-button" id="explodeButton" type="button" aria-pressed="false">
+            <span class="action-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M4 8.5 12 4l8 4.5-8 4.5-8-4.5Z" stroke="currentColor" stroke-width="1.25" />
+                <path d="m4 13 8 4.5 8-4.5" stroke="currentColor" stroke-width="1.25" />
+                <path class="icon-gap" d="M6.2 11.7 8.8 13" stroke="currentColor" stroke-width="1.25" />
+                <path class="icon-gap" d="m15.2 13 2.6-1.3" stroke="currentColor" stroke-width="1.25" />
+              </svg>
+            </span>
+            <span class="action-copy">
+              <span id="explodeLabel">拆解芯片</span>
+              <small id="explodeSub">EXPLODE STRUCTURE</small>
+            </span>
+            <kbd>E</kbd>
+          </button>
+
+          <span class="dock-divider" aria-hidden="true"></span>
+
+          <button class="ghost-button" id="resetButton" type="button">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M5.2 8.2A7.5 7.5 0 1 1 5 15.7" stroke="currentColor" stroke-width="1.25" />
+              <path d="M5.1 4.6v4.1h4.1" stroke="currentColor" stroke-width="1.25" />
+            </svg>
+            <span>复位视角</span>
+            <kbd>R</kbd>
+          </button>
+        </div>
+
+        <div class="system-mark" aria-hidden="true">
+          <span>SL·RV32I</span>
+          <span class="system-dot"></span>
+          <span>PROTOTYPE BUILD</span>
+        </div>
+      </div>
+
+      <div class="scene-vignette" aria-hidden="true"></div>
+      <div class="scene-grain" aria-hidden="true"></div>
+
+      <div class="loader" id="loader" aria-hidden="true">
+        <div class="loader-inner">
+          <div class="loader-mark"><span></span><span></span><span></span><span></span></div>
+          <div class="loader-copy">
+            <span>芯生</span>
+            <small>INITIALIZING SILICON STRUCTURE</small>
+          </div>
+          <div class="loader-track"><i></i></div>
+        </div>
+      </div>
+
+      <div class="webgl-fallback" id="webglFallback" hidden>
+        <div>
+          <span class="fallback-kicker">SILICON LIFE / 3D</span>
+          <h1>无法初始化 WebGL</h1>
+          <p>请使用支持 WebGL 2 的浏览器，并确认硬件加速已开启。</p>
+        </div>
+      </div>
+    </main>
+
+    <noscript>
+      <div class="noscript">《芯生》3D 结构原型需要启用 JavaScript。</div>
+    </noscript>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

@@ -2,7 +2,7 @@
 
 基于真实 RV32I 单周期架构的三维交互教学网站。Sprint 02 支持 **ADDI、ADD、LW、SW、BEQ**，包含三组真实程序、小端数据内存、RTL 信号快照和连续可逆的芯片展开。
 
-仓库：[JouCristian/Silicon-Life](https://github.com/JouCristian/Silicon-Life)。Sprint 02 已创建 [PR #1](https://github.com/JouCristian/Silicon-Life/pull/1)，保持未合并。Sprint 02.1 继续在 `feat/sprint-02` 本地修订，尚未 Push 或部署。未连接 v0。
+仓库：[JouCristian/Silicon-Life](https://github.com/JouCristian/Silicon-Life)。Sprint 02 / 02.1 使用 `feat/sprint-02` 与 [PR #1](https://github.com/JouCristian/Silicon-Life/pull/1)。Sprint 02.1 本地验收后已获授权正常推送和修复 CI，等待最终视觉验收；保持未合并、未部署。未连接 v0。
 
 ## 本地运行
 
@@ -77,7 +77,7 @@ npm run test:e2e
 
 E2E 保存首帧、中段、结束、反向截图及逐帧 JSON 到 `.local/`。帧检查验证连续性和状态边界，不能替代真实设备的视觉与性能评审。完整记录见 [VALIDATION](docs/VALIDATION.md)。
 
-生产输出为 `dist/`，可部署到 Vercel 静态托管或 Linux Nginx。默认域名根路径；子路径托管需配置 Vite `base`。Sprint 02 的实际 CI 已通过；Sprint 02.1 尚未推送，因此没有本轮远程 CI 结果。
+生产输出为 `dist/`，可部署到 Vercel 静态托管或 Linux Nginx。默认域名根路径；子路径托管需配置 Vite `base`。Sprint 02.1 已触发远程 CI，实际结果以 PR 最新提交的 Checks 为准，不能用本地测试代替。
 
 ## 工程边界
 

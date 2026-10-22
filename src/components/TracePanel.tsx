@@ -4,7 +4,7 @@ import { useLabView } from '../stores/useLabStore'
 import { PLAYBACK_RATES, transferSteps } from '../motion/transferPlayback'
 
 export function TracePanel() {
-  const { trace, phase, observe, history, traceIndex, replay, resumePlayback, pause, playing, mode, stepTransfer, transferPlayback, playbackRate, setPlaybackRate } = useLabView()
+  const { trace, phase, observe, history, traceIndex, replay, resumePlayback, pause, playing, mode, stepTransfer, transferPlayback, playbackRate, setPlaybackRate, playbackEpoch } = useLabView()
   const steps = transferSteps(trace)
   const transfer = transferPlayback.mode === 'transfer' ? steps[transferPlayback.index] : undefined
   const descriptions = trace ? {
@@ -19,7 +19,7 @@ export function TracePanel() {
     <div className="transfer-toolbar">
       <button className="button subtle" onClick={stepTransfer} disabled={!steps.length || transferPlayback.mode === 'transfer' && (playing || transferPlayback.complete)}>单步传递</button>
       <label className="playback-speed">传播速率<select aria-label="传播速率" value={playbackRate} onChange={e => setPlaybackRate(Number(e.target.value))}>{PLAYBACK_RATES.map(rate => <option key={rate} value={rate}>{rate.toFixed(2)}×</option>)}</select></label>
-      <div className="transfer-status" role="status" data-testid="transfer-status">{transferPlayback.mode === 'transfer' ? transferPlayback.complete ? `本条指令的 ${steps.length} 组可观察传递已完成。可回放或执行下一条指令。` : `${transferPlayback.index + 1} / ${steps.length} · ${transfer?.transfers.map(t => `${t.from} → ${t.to} (${t.signal})`).join('；')} · ${playing ? '传播中' : '已暂停，等待下一次操作'}` : '每次观察一组真实连接；并行信号保留同组关系，不代表 CPU 时钟。'}</div>
+      <div className="transfer-status" role="status" data-testid="transfer-status" data-transfer-end={transfer?.end} data-playback-epoch={playbackEpoch}>{transferPlayback.mode === 'transfer' ? transferPlayback.complete ? `本条指令的 ${steps.length} 组可观察传递已完成。可回放或执行下一条指令。` : `${transferPlayback.index + 1} / ${steps.length} · ${transfer?.transfers.map(t => `${t.from} → ${t.to} (${t.signal})`).join('；')} · ${playing ? '传播中' : '已暂停，等待下一次操作'}` : '每次观察一组真实连接；并行信号保留同组关系，不代表 CPU 时钟。'}</div>
     </div>
     <div className="phases" aria-label="概念观察阶段">{PHASES.map((p, i) => {
       const detail = p === 'memory' ? trace?.memoryAccess ? trace.memoryAccess.kind === 'load' ? 'Load' : 'Store' : '可跳过' : ['Read', 'Decode', 'Compute', '', 'Commit'][i]

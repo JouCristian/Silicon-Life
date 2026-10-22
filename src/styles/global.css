@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* Frozen prototype UI is reference material, not production utility content. */
+@source not "../../experiments";
 
 :root {
   color-scheme: dark;

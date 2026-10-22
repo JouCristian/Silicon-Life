@@ -25,7 +25,7 @@ test('native Chromium 125% and 150% page zoom keeps panels accessible', async ({
       }, rate)
       await page.bringToFront()
       await page.goto(baseURL!)
-      await expect(page.locator('.die-mark')).toBeVisible({ timeout: 20000 })
+      await expect(page.getByTestId('scene-root')).toHaveAttribute('data-chip-ready', 'true', { timeout: 20000 })
       const before = (await page.locator('.app-header').boundingBox())!
       expect(await page.evaluate(() => devicePixelRatio)).toBeCloseTo(rate, 2)
       await page.getByRole('button', { name: '进入芯片' }).focus()

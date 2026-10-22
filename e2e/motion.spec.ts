@@ -26,7 +26,7 @@ test('forward, reverse and interrupted reveal preserve Canvas and continuous scr
   page.on('pageerror', e => errors.push(e.message))
   page.on('console', e => { if (e.type() === 'error') errors.push(e.text()) })
   await page.goto('/')
-  await expect(page.locator('.die-mark')).toBeVisible({ timeout: 20000 })
+  await expect(page.getByTestId('scene-root')).toHaveAttribute('data-chip-ready', 'true', { timeout: 20000 })
   const canvas = await page.locator('.persistent-scene canvas').elementHandle()
   const before = await page.locator('.persistent-scene canvas').boundingBox()
   const root = page.getByTestId('scene-root')

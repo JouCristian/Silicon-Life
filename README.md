@@ -1,5 +1,7 @@
 # 芯生 / Silicon Life
 
+DeepSeek V2 芯片模型已在本地集成，保留单 CPU Canvas、连续转场与真实教学数据通路。适配、截图、测试及性能边界见 [CHIP_V2_INTEGRATION](docs/CHIP_V2_INTEGRATION.md)。原型目录为冻结参考，其 UI、DemoModules 和相机控制不进入正式场景。
+
 基于真实 RV32I 单周期架构的三维交互教学网站。Sprint 03.1 支持 **ADDI、ADD、LW、SW、BEQ** 的最多 10 个本地项目、65536 条 ROM、1/64/256 KiB RAM、IndexedDB 自动保存和 JSON / HEX 备份、RTL 信号快照和连续可逆的芯片展开。
 
 仓库：[JouCristian/Silicon-Life](https://github.com/JouCristian/Silicon-Life)，生产环境：[silicon-life.vercel.app](https://silicon-life.vercel.app/)。PR #1、#2 已合并；Sprint 03 从 main `1e3a81e` 建立分支；本轮在 `feat/sprint-03-program-memory` 的本地提交 `3aa05e2` 上继续 Sprint 03.1，只进行本地开发和验证，未推送、未创建 PR、未触发生产部署。未连接 v0。

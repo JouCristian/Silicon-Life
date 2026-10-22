@@ -32,4 +32,15 @@ R3F 的 eventSource 与 OrbitControls 的 domElement 同时绑定 scene-anchor�
 
 ## Limitations
 
+Sprint 03：程序管理和 ROM 导入置于左栏折叠区，RAM 视图、编辑和独立导入置于右栏。保持原生输入、文件选择、独立滚动与分隔线，错误显示具体位置而不打断 CPU 观察。BEQ 显示目标 / 警告，RAM 用 Δ 和字节高亮双重表达初始 / 运行差异。
+
+模式选择采用基于用户源码的 JellyRadio：受控 radio 语义、方向键 / Home / End、可见焦点，轻微横纵弹簧和邻项位移。首页采用 GradientASCII 的 field / glyph 渲染，深蓝灰、26px 字符网格、低密度与低透明度、缓慢漂移；标题及浅灰芯片保持视觉优先。背景不接收事件，不添加辉光后处理，20 FPS / DPR ≤1 / 约 1280×720 像素预算，离开首页释放；reduced-motion 与失败用 CSS 静态背景。CPU 仍为原单一持久 Canvas。授权见 `docs/THIRD_PARTY.md`。
+
 极窄屏三维标签较小，旋转放大或使用 HTML 面板观察。DPR 限制 1.5；固定 Canvas 绘制区域扩大，需要真实移动 GPU 进一步验证。当前无完整可访问性审计；所有架构状态都可从 HTML 中读取。逐帧测试用于验证坐标连续与状态边界，不替代真实设备视觉评审。
+
+
+## Sprint 03.1 操作修复
+
+项目选择、新建、复制、重命名、删除直接置于程序栏顶部；保存状态明确区分恢复 / 保存中 / 已保存 / 失败。内置示例只读，复制后编辑；JSON 备份和本地保存说明各保留单层详情。ROM 指令为主，每页 16 条，数量 / KiB、PC 跳转、分页和编辑动作同区；HEX 是辅助操作，不把数万条记录渲染为 DOM。
+
+ROM / RAM 共用 HexFilePicker，按钮和文件名分行，长名 ellipsis + title，隐藏真实 input 视觉但由可聚焦按钮触发；所有 Grid/Flex 子项 min-width:0。初始 RAM 明确可配置，运行 RAM 只读，显示 Δ、字节排列和最近写入地址；清空 / 缩小容量用确认对话框。快跑和本次步数预算放在执行栏下方，保留既有运行 / 单步 / 暂停操作。没有新增 UI 框架、React Bits 动效或首页视觉。

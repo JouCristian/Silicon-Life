@@ -1,0 +1,4 @@
+v2.0 raw
+# RAM, 32-bit cells, start BYTE address 0: cell 16 -> byte 64 -> value 42
+16*00000000
+0000002a

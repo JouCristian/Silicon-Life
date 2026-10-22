@@ -1,23 +1,26 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef } from 'react'
 import { AnimatePresence } from 'motion/react'
 import { useMotionPreference } from './motion/useMotionPreference'
-import { assembly, decode, hex } from './core/isa'
-import { InstructionEditor } from './components/InstructionEditor'
+import { hex } from './core/isa'
+import { instructionRow } from './io/program'
+import { EXECUTION_LIMITS } from './stores/useLabStore'
+import { ProgramPanel } from './components/ProgramPanel'
 import { RegisterPanel } from './components/RegisterPanel'
 import { MemoryPanel } from './components/MemoryPanel'
-import { PROGRAMS } from './data/programs'
 import { TracePanel } from './components/TracePanel'
 import { useLabView } from './stores/useLabStore'
 import { ScenePresence } from './components/ScenePresence'
 import { usePlaybackDriver } from './motion/usePlaybackDriver'
 import { MOTION } from './motion/design'
 import { WorkbenchLayout } from './components/WorkbenchLayout'
+import { JellyRadio } from './components/react-bits/JellyRadio'
 
 const CpuScene = lazy(() => import('./scenes/CpuScene'))
+const GradientASCII = lazy(() => import('./components/react-bits/GradientASCII'))
+const MODES = [{ value: 'demo' as const, label: '演示模式' }, { value: 'pro' as const, label: '专业模式' }]
 
 export default function App() {
-  const { cpu, program, programId, loadProgram, history, scene, mode, setMode, enter, home, step, run, pause, reset, resetView, running, playing, trace, phase } = useLabView()
-  const [selected, setSelected] = useState(0)
+  const { cpu, program, scene, mode, setMode, enter, home, step, run, pause, reset, resetView, running, playing, trace, phase, fastRunning, runFast, executionLimit, setExecutionLimit, executionNotice } = useLabView()
   const reduced = useMotionPreference()
   const anchorRef = useRef<HTMLDivElement>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
@@ -31,10 +34,10 @@ export default function App() {
     }
   }, [scene])
   const open = scene === 'workbench'
-  const preset = PROGRAMS.find(p => p.id === programId) ?? PROGRAMS[0]
   const current = program[cpu.pc / 4]
-  const status = playing ? '正在讲解' : running ? '运行中' : cpu.status === 'halted' ? '程序完成' : cpu.status === 'fault' ? '执行停止' : '就绪'
+  const status = playing ? '正在讲解' : fastRunning ? '快速执行中' : running ? '运行中' : cpu.status === 'halted' ? '程序完成' : cpu.status === 'fault' ? '执行停止' : '就绪'
   return <div className={`app ${open ? 'is-workbench' : 'is-home'}`}>
+    {!open && <Suspense fallback={null}><GradientASCII /></Suspense>}
     <div className="persistent-scene"><Suspense fallback={<div className="scene-fallback">正在加载三维引擎…</div>}><CpuScene anchorRef={anchorRef} /></Suspense></div>
     <header className="app-header">
       <button className="brand" onClick={home} aria-label="芯生首页"><span className="brand-mark">芯</span><span>芯生<span className="brand-en">SILICON LIFE</span></span></button>
@@ -45,27 +48,24 @@ export default function App() {
     <main>
       <AnimatePresence>{!open && <ScenePresence key="home" as="section" className="home-copy"><span className="intro-label">SWUST-OC · 交互式 CPU 实验室</span><h1>一条指令，<br />看见芯片的思考。</h1><p>从一颗芯片，走进真实的数据通路。<br />让每一次运算，都变得清晰可见。</p><button ref={homeButtonRef} className="button primary enter-button" onClick={enter}>进入芯片 <span aria-hidden="true">↗</span></button><span className="home-hint">也可以点击芯片开始探索</span></ScenePresence>}</AnimatePresence>
 
-      <AnimatePresence>{open && <ScenePresence key="heading" className="workspace-heading" delay={MOTION.ui.stagger}><div><div className="breadcrumb">芯生 / 实验室 / <span>单周期 CPU</span></div><h1 ref={headingRef} tabIndex={-1}>让指令，走一遍。</h1></div><div className="segmented mode-switch" aria-label="工作台模式"><button aria-pressed={mode === 'demo'} onClick={() => setMode('demo')}>演示模式</button><button aria-pressed={mode === 'pro'} onClick={() => setMode('pro')}>专业模式</button></div></ScenePresence>}</AnimatePresence>
+      <AnimatePresence>{open && <ScenePresence key="heading" className="workspace-heading" delay={MOTION.ui.stagger}><div><div className="breadcrumb">芯生 / 实验室 / <span>单周期 CPU</span></div><h1 ref={headingRef} tabIndex={-1}>让指令，走一遍。</h1></div><JellyRadio items={MODES} value={mode} onChange={setMode} ariaLabel="工作台模式" /></ScenePresence>}</AnimatePresence>
 
       <WorkbenchLayout open={open} program={<AnimatePresence>{open && <ScenePresence key="program" id="program-region" label="程序与指令编辑" as="aside" className="program-panel panel-scroll" delay={MOTION.ui.stagger * 2}>
-          <div className="section-title"><h2>程序</h2><span>{program.length} 条指令</span></div>
-          <select aria-label="教学程序" value={programId} onChange={e => { setSelected(0); loadProgram(e.target.value) }}>{PROGRAMS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
-          <p className="program-name"><span>{preset.summary}</span></p>
-          <ol className="program-list">{program.map((word, index) => <li key={index} className={`${cpu.pc === index * 4 ? 'next-instruction' : ''} ${trace?.before.pc === index * 4 ? 'last-instruction' : ''}`}><button onClick={() => setSelected(index)} aria-pressed={selected === index}><span className="line-number">{String(index + 1).padStart(2, '0')}</span><span><code>{assembly(decode(word))}</code><small>{hex(index * 4)}<span>{hex(word)}</span></small></span><span className="line-state">{history.some(t => t.before.pc === index * 4) ? '✓' : cpu.pc === index * 4 ? '←' : ''}</span></button></li>)}</ol>
-          <InstructionEditor key={`${programId}-${selected}`} index={selected} />
-          <div className="sample-goal"><span>预设目标</span><p>{preset.goal}</p></div>
+          <ProgramPanel />
         </ScenePresence>}</AnimatePresence>} scene={<>
           <AnimatePresence>{open && <ScenePresence key="toolbar" className="scene-toolbar" delay={MOTION.ui.stagger * 3}><span><span className="tiny-dot" />Teaching plane <small>2.5D</small></span><button className="text-button" onClick={resetView}>↺ 恢复视角</button></ScenePresence>}</AnimatePresence>
           <div ref={anchorRef} className="scene-viewport" data-testid="scene-anchor" aria-label={open ? 'CPU 三维交互区域' : '芯片三维交互区域'} />
           <div className="scene-bottom"><span>拖拽旋转 <span className="separator">·</span> 滚轮缩放 <span className="separator">·</span> 右键平移</span>{open && <span className="scene-legend" aria-label="信号语义图例"><i />数据<i className="control" />控制<i className="writeback" />写回</span>}</div>
           </>} details={<><AnimatePresence>{open && <ScenePresence key="controls" className="execution-presence" delay={MOTION.ui.stagger * 3}>
-            <div className="execution-bar"><div className="pc-state"><span>PC</span><code data-testid="pc">{hex(cpu.pc)}</code><small>已提交 {cpu.retired} 条</small></div><div className="execution-controls"><button className="button icon-button" aria-label="复位 CPU" title="复位 CPU" onClick={reset}>↺</button><button className="button subtle" onClick={step} disabled={playing || running || cpu.status !== 'ready'}>单步指令</button>{playing || running ? <button className="button primary" aria-label="暂停" onClick={pause}><span aria-hidden="true">Ⅱ</span> 暂停</button> : <button className="button primary" aria-label="运行" onClick={run} disabled={cpu.status !== 'ready' && !(trace?.after === cpu && phase !== 'writeback')}><span aria-hidden="true">▷</span> 运行</button>}</div></div>
-            <div className="execution-status" role="status"><span className={`status-dot ${cpu.status === 'fault' ? 'fault' : ''}`} />{status}<span className="status-detail">{cpu.reason ?? (current !== undefined ? `下一条：${assembly(decode(current))}` : '')}</span></div>
+            <div className="execution-bar"><div className="pc-state"><span>PC</span><code data-testid="pc">{hex(cpu.pc)}</code><small>已提交 {cpu.retired} 条</small></div><div className="execution-controls"><button className="button icon-button" aria-label="复位 CPU" title="复位 CPU" onClick={reset}>↺</button><button className="button subtle" onClick={step} disabled={playing || running || fastRunning || cpu.status !== 'ready'}>单步指令</button>{playing || running || fastRunning ? <button className="button primary" aria-label="暂停" onClick={pause}><span aria-hidden="true">Ⅱ</span> 暂停</button> : <button className="button primary" aria-label="运行" onClick={run} disabled={cpu.status !== 'ready' && !(trace?.after === cpu && phase !== 'writeback')}><span aria-hidden="true">▷</span> 运行</button>}</div></div>
+            <div className="execution-options"><button className="button subtle" onClick={runFast} disabled={playing || running || fastRunning || cpu.status !== 'ready'}>快速运行</button><label>本次步数预算<select aria-label="执行步数预算" value={executionLimit} onChange={e => setExecutionLimit(Number(e.target.value))}>{EXECUTION_LIMITS.map(limit => <option key={limit} value={limit}>{limit.toLocaleString()} 步</option>)}</select></label></div>
+            {executionNotice && <p className="field-help" role="status">{executionNotice}</p>}
+            <div className="execution-status" role="status"><span className={`status-dot ${cpu.status === 'fault' ? 'fault' : ''}`} />{status}<span className="status-detail">{cpu.reason ?? (current !== undefined ? `下一条：${instructionRow(program, cpu.pc / 4).assembly}` : '')}</span></div>
           </ScenePresence>}</AnimatePresence>
           <AnimatePresence>{open && <ScenePresence key="trace" className="trace-presence" delay={MOTION.ui.stagger * 4}><TracePanel /></ScenePresence>}</AnimatePresence></>}
         state={<AnimatePresence>{open && <ScenePresence key="state" id="state-region" label="寄存器与数据内存" as="aside" className="state-panel panel-scroll" delay={MOTION.ui.stagger * 3}><RegisterPanel /><MemoryPanel /></ScenePresence>}</AnimatePresence>} />
     </main>
 
-    <footer className="app-footer"><span>SWUST-OC 一生一芯学习小组</span><span>{open ? '真实执行 · 快照驱动可视化' : 'Cinematic Reveal + Teaching Plane'}</span><span>Sprint 02.1 <span className="separator">/</span> 2026</span></footer>
+    <footer className="app-footer"><span>SWUST-OC 一生一芯学习小组</span><span>{open ? '真实执行 · 快照驱动可视化' : 'Cinematic Reveal + Teaching Plane'}</span><span>Sprint 03.1 <span className="separator">/</span> 2026</span></footer>
   </div>
 }

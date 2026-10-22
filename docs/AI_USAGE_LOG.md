@@ -1,5 +1,23 @@
 # AI 使用记录
 
+## 2026-10-22 · Sprint 03.1
+
+- 用户贡献：明确验收问题与实用性优先级，要求 65536 条 ROM、10 项目、IndexedDB、完整 JSON 备份、统一文件控件和明确 RAM 模式；禁止 Push / Merge / 部署及 MMIO / ISA / 首页视觉扩展。
+- Codex 贡献：分析多处 256 / 1000 硬限制、整表 DOM / decode、无界 Trace、全 RAM 复制和单份会话状态；实现紧凑只读 ROM、分页 + PC 跳转、分批快跑与可续预算、有界历史、大 RAM 页共享、项目模型与 JSON、IndexedDB 串行保存 / 冲突保护、Worker 文件解析和必要 UI 修复。
+- 沿用已读取的 impeccable 产品界面指导与既有设计系统，没有新增复杂 UI 框架、依赖或首页动效，React Bits 源码及授权保持。
+- 保留 CPU 编码、32 位算术、访存对齐与原子性基准。既有测试只适配明确变化的容量 / 项目作用域 / 预算策略、紧凑表示和新 UI 流程，没有修改预设 CPU 结果来掩盖失败。新增真实大程序、不可变页、项目事务与实际浏览器失败注入 / 性能验证。
+- Core 改动限于 ArrayLike ROM 接口、未知指令的 PC 信息和不可变内存表示；原 RTL 与 ISA / Trace 信号计算未改。所有文件导入仅在本机，不调用 v0，不使用子 agent，不创建远程 PR 或触发部署。
+
+## 2026-10-22 · Sprint 03
+
+- 用户贡献：自定义程序与 HEX / RAM 工作流、会话状态要求、MMIO 未来目标、验收条件；提供 React Bits JellyRadio 和 GradientASCII 完整 JSX / CSS 源码。
+- Codex 贡献：在最新 main `1e3a81e` 的本地 `feat/sprint-03-program-memory` 实现程序管理、PC / BEQ 目标说明、有界纯 HEX 解析、导入预览与原子确认、8/32 位初始 RAM 编辑和导出、初始寄存器 / RAM 复位机制、测试、示例与文档。
+- 使用已读取的 impeccable 产品界面指导，保留既有黑灰蓝、固定 CPU Canvas、独立滚动与分隔线。基于用户源码适配 React Bits 的弹簧 radio 与 field / glyph WebGL2 渲染，未假称独立原创这些组件。完整来源、许可证及适配说明见 `THIRD_PARTY.md` 和 `third_party/react-bits/LICENSE.md`。
+- 实际阅读并保留官方 MIT + Commons Clause 许可；没有新增动画依赖、生成式图片、音频或视频素材，没有连接 v0。
+- 浏览器验收发现芯片拖拽后的 click 误触与首帧弹簧对切换前长帧的错误积分，分别加入位移判定及新目标生效时间界限。没有放宽已有连续性或 CPU 正确性断言。
+- CPU Core、预设常量、Trace 执行语义与原始 RTL 未修改。MMIO 仅完成框架无关的架构提案，未猜测用户旧设备地址 / 颜色编码。
+- 基线类型检查、53 项单元、构建和 9 条 E2E 通过；新增验证见 `VALIDATION.md`。未执行 Push、PR、Merge 或部署，等待本地视觉验收。
+
 ## 2026-10-22 · Sprint 02.1
 
 - 后续 Git 授权：用户确认本地成果后，另行批准正常 Push、更新 PR #1 与修复 CI。首次云端 E2E 暴露 HTML 播放完成与 Three.js 上一渲染帧的读取竞态；Codex 增加只读轮次/状态/终点诊断，并等待实际终点绘制后继续严格冻结断言。未修改 CPU 正确性测试期望，未 Merge 或部署。

@@ -1,12 +1,15 @@
 import { u32 } from './isa'
+import { PagedMemory } from './pagedMemory'
 
 export const MEMORY_BYTES = 1024
-export type DataMemory = readonly number[]
+export const MAX_MEMORY_BYTES = 256 * 1024
+export type DataMemory = readonly number[] | PagedMemory
 
-export function createMemory(bytes: readonly number[] = Array(MEMORY_BYTES).fill(0)): DataMemory {
-  if (bytes.length < 4 || bytes.length > 65536 || bytes.length % 4 || bytes.some(n => !Number.isInteger(n) || n < 0 || n > 255))
-    throw new Error('内存须为 4–65536 字节、4 字节对齐的字节数组')
-  return Object.freeze([...bytes])
+export function createMemory(bytes: ArrayLike<number> = new Uint8Array(MEMORY_BYTES)): DataMemory {
+  if (bytes instanceof PagedMemory) return bytes
+  if (!Number.isInteger(bytes.length) || bytes.length < 4 || bytes.length > MAX_MEMORY_BYTES || bytes.length % 4) throw new Error('内存须为 4–262144 字节、4 字节对齐的字节数组')
+  for (let i = 0; i < bytes.length; i++) if (!Number.isInteger(bytes[i]) || bytes[i] < 0 || bytes[i] > 255) throw new Error('内存包含非法字节')
+  return bytes.length > MEMORY_BYTES ? new PagedMemory(bytes) : Object.freeze(Array.from(bytes))
 }
 
 export function checkWord(memory: DataMemory, address: number): void {
@@ -23,6 +26,7 @@ export function readWord(memory: DataMemory, address: number): number {
 export function writeWord(memory: DataMemory, address: number, data: number, strobes = 15): DataMemory {
   checkWord(memory, address)
   if (!Number.isInteger(strobes) || strobes < 0 || strobes > 15) throw new Error('无效字节选通')
+  if (memory instanceof PagedMemory) return memory.withBytes(address, Array.from({ length: 4 }, (_, lane) => strobes & (1 << lane) ? data >>> (lane * 8) & 255 : memory[address + lane]))
   const bytes = [...memory]
   for (let lane = 0; lane < 4; lane++) if (strobes & (1 << lane)) bytes[address + lane] = (data >>> (lane * 8)) & 255
   return Object.freeze(bytes)

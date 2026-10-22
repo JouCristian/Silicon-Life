@@ -2,7 +2,7 @@
 
 ## 事实来源与流程
 
-GitHub 是唯一代码事实来源，远程仓库为 https://github.com/JouCristian/Silicon-Life。Sprint 01 已由用户推送到 main；Sprint 02 在本地 feat/sprint-02 分支，本轮 Push、PR、Merge 需用户确认，未连接 v0。v0 与 Codex 使用额度独立，不存在自动接力，用户通过 GitHub 手动分派和审查。
+GitHub 是唯一代码事实来源，远程仓库为 https://github.com/JouCristian/Silicon-Life。Sprint 02 / 02.1 及遗留修复已合并；Sprint 03 使用本地 feat/sprint-03-program-memory 分支，用户验收前禁止 Push、PR、Merge 或部署，未连接 v0。v0 与 Codex 使用额度独立，不存在自动接力，用户通过 GitHub 手动分派和审查。
 
 1. 用户审查本地 Sprint 后授权推送开发分支，远程已建立，不重复创建仓库。
 2. 在 v0 导入 GitHub 仓库，保留 React + Vite + TypeScript；若导入流程提出迁移 Next.js，停止迁移并由主工程师确认兼容方式。
@@ -23,6 +23,8 @@ GitHub 是唯一代码事实来源，远程仓库为 https://github.com/JouCrist
 - `src/core/` 的 ISA 编码、译码、执行、32 位算术与 Trace 语义。
 - `src/tests/` 中测试基准；不能删除失败测试或变更机器码期望。
 - `src/stores/useLabStore.ts` 提交、停止、保护与播放边界。
+- `src/io/` 的 HEX 解析、展开限制、ROM 校验、RAM 初始镜像与小端 / 对齐策略。
+- `src/projects/` 的项目 schema、IndexedDB、保存队列和多标签页 revision 事务；Core 的 InstructionROM / PagedMemory 存储表示。
 - RTL 原件、机器码数据基准、CI 必需检查、框架和部署架构。
 - 不得为界面填充伪造 CPU 结果、随机信号或独立动画写回逻辑。
 
@@ -33,6 +35,8 @@ GitHub 是唯一代码事实来源，远程仓库为 https://github.com/JouCrist
 - `cpu` 是当前架构状态；`trace.before/after` 是历史快照。历史回放不改变 `cpu`。
 - `trace.phases[phase]` 提供参与模块，`trace.signals` 提供数值。控制编码与 RTL 原名必须保持。
 - 扩展接口变更先由主工程师更新类型、语义、映射和测试，再交给视觉协作者使用。
+- 自定义程序通过 createCustomProgram / insertInstruction / deleteInstruction / moveInstruction / importProgram 操作；初始 RAM 通过 setInitialMemory 操作。组件不得直接写 customProgram / initialMemory / initialRegisters；修改程序重置 Trace，但不能清除初始配置。数据类型详见 src/io/，导入流程详见 docs/HEX_FORMAT.md。
+- Sprint 03.1 项目操作使用 createProject / renameProject / deleteProject / importProject / loadProgram，快跑使用 runFast / pause。配置与保存状态仅通过 Store read model / action 获取，不由组件直接操作 IndexedDB 或变更 readonly buffer。删除 / 清空 / 缩容的确认属于必要交互，不可为视觉简化移除。
 
 ## 部署准备
 

@@ -1,0 +1,58 @@
+{
+  "date": "2026-10-22",
+  "environment": "Windows / Node v24.15.0 / Chromium / Playwright / SwiftShader software WebGL",
+  "measurement": "UI end-to-end elapsed wall time including automation; import includes worker parse, confirmation and IndexedDB save; restore includes page reload and scene startup; heap is CDP Runtime.getHeapUsage after explicit GC, not total process or GPU memory",
+  "rom": {
+    "baselineHeap": 25175904,
+    "retained": 26970072,
+    "metrics": [
+      {
+        "count": 4096,
+        "importMs": 680,
+        "runMs": 964,
+        "heartbeatSamples": 20,
+        "maxHeartbeatGapMs": 222.10000002384186,
+        "domNodes": 733,
+        "rows": 16,
+        "heapAfterGC": 26843732
+      },
+      {
+        "count": 65536,
+        "importMs": 667,
+        "runMs": 9647,
+        "restoreMs": 1526,
+        "heartbeatSamples": 15,
+        "maxHeartbeatGapMs": 203.9000000357628,
+        "domNodes": 733,
+        "rows": 16,
+        "heapAfterGC": 24439332
+      },
+      {
+        "repeat": 1,
+        "heapAfterGC": 26312336
+      },
+      {
+        "repeat": 2,
+        "heapAfterGC": 26710712
+      },
+      {
+        "repeat": 3,
+        "heapAfterGC": 26975692
+      }
+    ]
+  },
+  "ram": {
+    "ramMetrics": [
+      {
+        "capacityBytes": 65536,
+        "resizeAndManualEditMs": 361
+      },
+      {
+        "capacityBytes": 262144,
+        "resizeAndManualEditMs": 598
+      }
+    ],
+    "storeBranch1000StepsMs": 464,
+    "retainedTraceCount": 128
+  }
+}

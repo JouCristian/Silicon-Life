@@ -67,9 +67,11 @@ Next PC、MUX、WB 是 **顶层内联逻辑的教学分组**，不是独立 RTL 
 
 ## 未覆盖
 
+Sprint 03 的自定义 ROM、HEX 解析、初始 RAM / 寄存器配置、编辑容量、导入事务、UI 分支范围提示与 Δ 差异标记均为 **宿主软件功能**，不是 RTL 新增模块或端口。ROM 仍通过原 imem 地址 / 数据路径执行；RAM 配置生成宿主 1024 字节镜像，运行 LW/SW 的 dmem 信号、对齐、选通与 Trace 语义保持不变。initialMemory / initialRegisters 不作为虚构控制线绘制。MMIO 只在架构文档规划，尚未实现或映射。React Bits 与 RTL 无对应关系。
+
 完整 RV32I、其他分支 / 跳转、JALR、字节 / 半字访存、ECALL/EBREAK/FENCE、完整 Trap 优先级及复位门控。RTL 原件保留本地且被 Git 忽略，Web 可独立运行；共享 RTL 需另行确认授权。
 
-## 原件 SHA-256（Sprint 01 基线，Sprint 02 复核一致）
+## 原件 SHA-256（Sprint 01 基线，Sprint 02 / 03 复核一致）
 
 ```text
 alu.v         19ACA92F1D115498629CB416077F4A2C951A5FF9A048D3F2B42EA2A0C2536B69
@@ -81,3 +83,7 @@ imm_gen.v     C04EFE9DB95DEA3140C324C4A5712A6F8A2564BF061AD1E4817AF040EFDE5F37
 pc.v          49761D9F18BC5D00CABE55730489CFEA402DAE43CC6103C84D88BC34410A847C
 regfile.v     AB0D4A49F83F1BD739081AC16367A24C27872D40E2C87925A12309D6F22D6743
 ```
+
+## Sprint 03.1 主机扩展
+
+本轮仅扩大宿主 ROM 至 65536 条、RAM 可选 1 / 64 / 256 KiB，增加紧凑只读 ROM / 分页不可变 RAM 表示。CPU 取址 PC/4、小端访存、对齐、选通、一次提交和所有已有 Trace 信号仍按前述五条指令映射。CPU Core 的接口接受 ArrayLike ROM，未知指令错误增加 PC；未新增 RTL 控制线或 ISA。主机执行预算、项目、IndexedDB、分页列表、Worker 均不属于 RTL。高地址 MMIO 未实施，超出 RAM 窗口仍拒绝，不虚构设备地址。原 RTL 保持只读，未进行 RTL 联合仿真。

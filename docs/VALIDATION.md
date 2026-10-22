@@ -1,4 +1,96 @@
-# Sprint 02 验证记录
+# 芯生验证记录
+
+## Sprint 03.1 本地验收（2026-10-22）
+
+继续当前 `feat/sprint-03-program-memory`，起点本地提交 `3aa05e2`，初始工作区干净。本轮未 fetch / Push / PR / Merge / 部署。基线 typecheck、95 项单元通过；沿用 Sprint 03 已通过的构建与 16 条 E2E。原 RTL 保留，未修改 ISA 或增加指令。
+
+### 最终检查
+
+| 命令 / 检查 | 结果 |
+| --- | --- |
+| npm run typecheck | 通过 |
+| npm test | 8 文件 / **110 项通过**；既有 CPU 运算、编码、原子性与三个预设基准保留 |
+| npm run build | 通过；主包 211.86 KB / gzip 71.06 KB，Worker 7.98 KB |
+| npm run test:e2e | **22 条全部通过**，约 3.4 分钟，单 worker，无重试 |
+| 本地开发服务 | http://127.0.0.1:5173/，HTTP 200 |
+| RTL / ISA / Trace / 场景 | 8 个 RTL SHA-256 与基线一致；isa.ts、core/trace、三个预设、src/scenes、React Bits 和依赖锁文件无改动 |
+
+Three 共享包 1,168.42 KB / gzip 327.41 KB，原体积警告保留。CPU Core 的变化限于 ArrayLike ROM 类型、故障 PC 信息及只读分页内存表示；不改变算术、地址、控制或提交结果。
+
+### 容量与实际浏览器性能
+
+原始数据提交在 [PERFORMANCE_SPRINT_031.json](PERFORMANCE_SPRINT_031.json)；浏览器记录 `.local/sprint031-performance.json`、`.local/sprint031-ram-performance.json`。Windows / Chromium / SwiftShader，无真实 GPU 帧率承诺。时间为实际 UI 端到端墙钟时间，包含自动化；导入含 Worker、预览确认和 IndexedDB 保存，恢复含刷新和三维引擎启动，不是纯解析器微基准。
+
+| 实测项目 | 最后一轮结果 |
+| --- | --- |
+| 4096 条 ROM 导入 / 执行 | 680ms / 964ms；x1=4096，PC=16384，retired=4096 |
+| 65536 条 ROM 导入 / 执行 | 667ms / 9647ms；x1=65536，PC=262144，retired=65536 |
+| 65536 条已存 ROM 刷新恢复 | 1526ms；配置恢复，CPU 运行态和 Trace 清空 |
+| ROM 列表 / 整页 DOM | 始终 16 行 / 733 节点；可跳到最后 PC=0x0003fffc |
+| 导入心跳（16ms timer）最大间隔 | 4096 条 222.1ms，65536 条 203.9ms；软件 WebGL 与 UI 工作同处主线程，不代表零卡顿 |
+| 64 / 256 KiB RAM 扩容 + 手动编辑观察 | 361ms / 598ms（含自动化，不是单次 SW 耗时） |
+| 256 KiB RAM，真实 SW / BEQ 循环 1000 步 | 464ms 到预算暂停，历史保留 128 条，运行 RAM=42 / 初始 RAM=17 |
+| 重复运行后 CDP 保留堆 | 基线 25,175,904 B，最终 26,970,072 B，净增约 1.71 MiB；最近三次约 25.09 / 25.47 / 25.73 MiB |
+
+ROM 测试为 65536 个真实 ADDI x1,x1,1（完整 HEX 文本非仅 RLE），快速执行后精确检查寄存器 / PC / 历史，再刷新验证保存与恢复。RAM 分别验证 64/256 KiB 末端地址、小端字节、初始导入、运行 SW、Reset 和独立项目恢复。256 KiB 镜像用 65536 个 32 位单元导入并刷新。大 RAM 每次 SW 只复制一个 1 KiB 页加页表，单元测试明确验证 copiedPageBytes，旧快照保持原值。堆数据仅代表 JS，不能推断 GPU / 全进程内存，也不是长期泄漏证明；观察到历史容量始终有界。
+
+### 功能与数据安全
+
+- 新建、复制、重命名、切换、删除确认与 10 项目上限；内置示例只读、编辑前复制。项目切换恢复独立 ROM / 初始 RAM / 寄存器，清除旧 Trace。JSON 完整往返，非法版本 / 结构 / 数值不修改旧项目；导入创建独立副本。
+- IndexedDB 真正刷新恢复最近选择及初始配置，运行结果不保存。串行 SaveQueue 单元测试延迟旧完成，确认较新修改 / 选择不被旧快照确认或覆盖；只有 transaction complete 后标已保存。实际浏览器注入 IndexedDB 不可用 / QuotaExceededError，正确显示失败且仍能下载完整 JSON。
+- 两个真实标签页读同一 revision，先提交新名称，再尝试旧标签页写入；拒绝陈旧事务，刷新后仍是新名称，旧页内容可备份。关闭前保存中 / 失败的保护由 beforeunload 实施；不能保证浏览器强退时尚未完成事务不丢失。
+- 4096 / 65536 条真实执行超过 1000，分批最多 512 条 / 约 8ms，并允许暂停。真实后向分支到预算停止且可继续；128 条历史保持连续真实 id，回放不写寄存器 / RAM。同步 core.run 的 1000 步保护仅保留为原测试辅助接口，不用于 UI 长程序。
+- 未知原始 32 位机器码允许保存，列表与当前指令不抛异常；实际运行 `00500093 ffffffff` 时 x1=5、PC=4、retired=1，显示 PC 和机器码并安全停止；严格模式仍拒绝它，格式 / 长度非法始终原子拒绝。
+- 只读 ROM 不暴露输入、输出或 callback 的底层 Uint32Array；Proxy 的 valueOf 也不能取得可写实例。分页 RAM 同样冻结实例、隐藏页 buffer，边界 / 对齐、字节选通与不可变快照测试保留。
+
+### UI 与已有回归
+
+ROM / RAM 真实 file input 使用可见自定义按钮触发，文件名单独一行、长名省略与 title、同名重选。真实 Chromium 125% / 150% 页面缩放验证两个控件按钮与文件名均在容器内、不重叠；沿用窄栏 / 分隔线和 390px 重排检查。初始 RAM 可配置 / 运行 RAM 只读、清空与缩容确认、执行后编辑禁用、最近写入地址跳转均保留明确语义。
+
+全部原 16 条 E2E 继续通过，只有预设复制、项目 id、RAM 模式、严格模式和文件控件的新流程适配，不改变 CPU 期望或放宽运动断言。测试中修复首次导入创建项目后结果提示随组件卸载丢失的问题，提示改由 Store 保留；切换项目取消旧文件与 Worker 预览。多页测试显式激活实际操作页；Vite 忽略测试证据目录，避免文件生成干扰开发页。捕获 pageerror / console.error 的验收场景为 0，Canvas 身份、正反转场、暂停与倍速检查均通过。
+
+已查看 `.local/sprint031-rom-65536.png` 与前轮文件界面截图；后续真实浏览器视觉验收仍由用户完成。本轮未扩展首页、React Bits、MMIO 或 ISA。浏览器本地保存不是云同步，清理站点数据可能删除项目；保存失败无自动合并 / 恢复，应导出备份后刷新。Safari / Firefox、真实移动 GPU、触屏、长期性能及 RTL 联合仿真尚未验证。
+
+
+## Sprint 03 本地验收（2026-10-22）
+
+从已合并 PR #2 的最新 main / origin/main `1e3a81e` 创建本地 `feat/sprint-03-program-memory`；保留原分支、原 RTL 与本地参考文件。开发前类型检查、53 项单元测试、生产构建、9 条 E2E 均通过。依赖与锁文件未变，使用现有锁定安装环境。
+
+### 最终结果
+
+| 命令 / 检查 | 结果 |
+| --- | --- |
+| npm run typecheck | 通过 |
+| npm test | 7 文件 / **95 项通过**（原有 53 项保留，新增 42 项） |
+| npm run build | 通过 |
+| npm run test:e2e | **16 条全部通过**，约 2.0 分钟，单 worker，无重试 |
+| 本地开发服务器 | http://127.0.0.1:5173/，HTTP 200 |
+| Core / 预设 / RTL | src/core/ 与 src/data/programs.ts 无改动；8 个 RTL SHA-256 与映射基线一致 |
+| 远程状态 | 本轮无 Push / PR / Merge / 部署，未运行远程 CI |
+
+### 功能证据
+
+- 空白、1、37、256 条程序真实执行，PC=条数×4、retired 准确、x0 恒零。不可变插入 / 删除 / 移动、选中索引、预设副本、切换恢复、自定义基线和 BEQ 目标均验证。256 上限、非法指令 / 空文件 / 追加溢出被原子拒绝。
+- Store 订阅只收到一次成功导入更新，已切换 ROM、重建 CPU、清空历史 / traceIndex / 传递游标并推进 epoch，不暴露新 ROM 配旧 Trace 的中间状态。
+- HEX 验证 BOM、注释、多行、unsigned32、十进制 RLE、UTF-8 文件上限、巨大次数展开前拒绝、位宽溢出和不支持格式。非法 ROM 显示具体第 2 条 `[0xffffffff]` 与原因，原程序和运行结果保持不变。
+- RAM 手动 64→42，真实 LW 读出 x3=42；SW 将运行 RAM 改写为 99（单元）或地址 0 写 42（浏览器），初始镜像保持，Reset 恢复。播放 / 回放不再次写入。切换、编辑、载入程序仍保留初始 RAM / 寄存器。执行后编辑被拒绝。
+- RAM 8 位 / 32 位、小端 `44 33 22 11`、起始字节地址、最后合法字节 / 字地址、未对齐 / 越界、替换零填充、非法值严格拒绝。ROM 32 位、整份 RAM 8/32 位导出导入逐项一致；浏览器另验证 ROM 下载后重新选择导入并运行。
+- 真实浏览器从空程序手工添加 ADDI / ADD，编辑、移动后 x3=12；ROM 预览需确认，导入后 x3=12；RAM HEX 17 个 word（单元 16→字节 64）以及起始地址 64 的 8 位数据都使 LW 得到 42。
+- 原三个预设结果不变：算术 x3=12 / PC=12 / retired=3；内存 M[64]=42 / x3=42 / PC=16 / retired=4；分支跳过 99，x3=42 / PC=20 / retired=4。
+
+### 视觉、资源与回归
+
+- 已实际查看 `.local/sprint03-home-ascii.png`、`sprint03-custom.png`、`sprint03-ram.png`。首页字符保持背景层，CPU 线框、标题与按钮清晰；程序 / RAM 操作使用原有独立滚动区。
+- JellyRadio 真实 radiogroup / radio、方向键 / Home、焦点、模式切换与动态 reduced-motion 均有浏览器断言。沿用原固定 CPU Canvas；原 E2E 的 canvas selector 仅收窄为 `.persistent-scene canvas`，专业模式由 button role 改为 radio role，没有更改执行期望。
+- ASCII 实际 WebGL 渲染，验证不截获指针、DPR / 像素预算、1.1 秒实际 draw-call 采样（每帧两 pass，≤20 FPS）。离开首页停止 draw，重复进入 / 动态 reduced-motion / context loss 释放所有跟踪的 shader、program、texture、FBO、VAO。WebGL2 不可用以及注入 shader 编译失败均退回 CSS，部分初始化资源无残留，CPU 可继续使用。
+- 转场回归暴露首个新目标帧使用了切换前长帧 delta，进度可能从 0 跳到 0.899。修复为只积分新目标生效后的时间，后续保留原解析弹簧和全帧 delta。原中段、盖板淡出、连续性速度、正反向和中途反转断言全部保留并通过。诊断在 `.local/sprint03-forward-diagnostic.json`，完整正反向记录在 `.local/sprint02-motion-samples.json`。另修复拖拽芯片松手后的 click 误触，>4px 位移不进入。
+- 原独立滚动、分隔线、事件隔离、1000 条执行保护、单步传递、倍速、暂停 / 回放不重复提交，以及 Chromium 原生 125% / 150% 缩放回归全部通过。捕获 pageerror / console.error 的验收场景为 0，无阻断错误。
+
+### 体积与未验证范围
+
+Three 共享包仍为 1,168.42 KB（gzip 327.41 KB），保留原体积警告；ASCII lazy chunk 15.33 KB（gzip 5.79 KB）、独立 CSS 0.51 KB，没有新增依赖。装饰背景上限 20 FPS、DPR 1、约 1280×720 像素预算，CPU Canvas 仍限制 DPR 1.5。
+
+测试环境为 Windows / Node 24 / Chromium / SwiftShader。未测试真实移动 GPU、Safari / Firefox 或触屏性能；逐帧和资源调用断言不能代替用户真实设备视觉验收。无 RTL 联合仿真、完整 RV32I、MMIO 设备实现或会话持久化。MMIO 仅文档规划，不猜测地址或像素编码。
 
 ## Sprint 02.1 本地验收（2026-10-22）
 

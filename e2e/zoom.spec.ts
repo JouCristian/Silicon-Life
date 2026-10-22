@@ -37,6 +37,22 @@ test('native Chromium 125% and 150% page zoom keeps panels accessible', async ({
       await page.getByRole('button', { name: '单步指令', exact: true }).focus()
       await page.keyboard.press('Enter')
       await expect(page.getByTestId('register-1').locator('code')).toHaveText('5')
+      await page.getByLabel('教学程序').selectOption('arithmetic')
+      await page.getByRole('button', { name: '复制为我的项目', exact: true }).focus()
+      await page.keyboard.press('Enter')
+      await page.getByLabel('内存数据视图').selectOption('initial')
+      for (const target of ['ROM', 'RAM']) {
+        const panel = page.locator(target === 'ROM' ? '.program-panel .hex-panel' : '.memory-panel .hex-panel')
+        await panel.locator(':scope > summary').focus(); await page.keyboard.press('Enter')
+        const filename = `${target}-${'very-long-filename-'.repeat(10)}.hex`
+        await page.getByLabel(`${target} HEX 文件`, { exact: true }).setInputFiles({ name: filename, mimeType: 'text/plain', buffer: Buffer.from(target === 'ROM' ? '00500093' : '0000002a') })
+        await expect(panel.locator('.picked-file-name')).toHaveAttribute('title', filename)
+        expect(await panel.locator('.hex-file-picker').evaluate(el => {
+          const box = el.getBoundingClientRect(), name = el.querySelector('.picked-file-name')!.getBoundingClientRect(), button = el.querySelector('button')!.getBoundingClientRect()
+          return name.right <= box.right + 1 && button.right <= box.right + 1 && name.left >= box.left - 1 && name.top >= button.bottom
+        })).toBe(true)
+      }
+      await expect(page.getByTestId('save-status')).toHaveAttribute('data-status', 'saved')
       await page.locator('.app-footer').scrollIntoViewIfNeeded()
       await expect(page.locator('.app-footer')).toBeInViewport()
       evidence.push(await page.evaluate(() => ({ zoom: devicePixelRatio, innerWidth, innerHeight, outerWidth, scrollWidth: document.documentElement.scrollWidth })))

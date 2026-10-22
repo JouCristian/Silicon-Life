@@ -15,6 +15,10 @@
 
 `src/core/`、`src/core/trace/`、`src/tests/` 是语义受保护目录。主工程师可按已授权 Sprint 实现和维护；v0 等视觉协作者未经批准不得修改。`src/stores/useLabStore.ts` 的提交/播放边界同样受保护。不得为迁就 UI 改写测试期望。
 
+Sprint 03 的 `src/io/` 同样属于语义边界：HEX 解析、展开上限、ROM 指令校验、RAM 地址 / 对齐 / 小端策略不可由纯视觉任务改变。初始配置与运行状态分离，程序编辑 / 导入须原子复位且保留初始 RAM / 寄存器。不得自动重写 BEQ 偏移。
+
+Sprint 03.1：`src/projects/` 的模型、schema 校验、IndexedDB 事务、revision 冲突保护与 SaveQueue 同属受保护语义。只保存项目配置，不保存 CPU / Trace。只在事务完成且无待写项时标记已保存；失败保留页面内容并允许 JSON 导出。ROM 65536 条需保持紧凑表示和分页渲染；快跑按批让出主线程，保留可续预算和最近 128 条历史。大 RAM 页不可暴露可变 buffer 或整片复制写入。
+
 ## 命令
 
 ```sh

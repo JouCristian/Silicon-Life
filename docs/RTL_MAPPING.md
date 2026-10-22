@@ -67,9 +67,11 @@ Next PC、MUX、WB 是 **顶层内联逻辑的教学分组**，不是独立 RTL 
 
 ## 未覆盖
 
+Sprint 03 的自定义 ROM、HEX 解析、初始 RAM / 寄存器配置、编辑容量、导入事务、UI 分支范围提示与 Δ 差异标记均为 **宿主软件功能**，不是 RTL 新增模块或端口。ROM 仍通过原 imem 地址 / 数据路径执行；RAM 配置生成宿主 1024 字节镜像，运行 LW/SW 的 dmem 信号、对齐、选通与 Trace 语义保持不变。initialMemory / initialRegisters 不作为虚构控制线绘制。MMIO 只在架构文档规划，尚未实现或映射。React Bits 与 RTL 无对应关系。
+
 完整 RV32I、其他分支 / 跳转、JALR、字节 / 半字访存、ECALL/EBREAK/FENCE、完整 Trap 优先级及复位门控。RTL 原件保留本地且被 Git 忽略，Web 可独立运行；共享 RTL 需另行确认授权。
 
-## 原件 SHA-256（Sprint 01 基线，Sprint 02 复核一致）
+## 原件 SHA-256（Sprint 01 基线，Sprint 02 / 03 复核一致）
 
 ```text
 alu.v         19ACA92F1D115498629CB416077F4A2C951A5FF9A048D3F2B42EA2A0C2536B69

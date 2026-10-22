@@ -32,4 +32,8 @@ R3F 的 eventSource 与 OrbitControls 的 domElement 同时绑定 scene-anchor�
 
 ## Limitations
 
+Sprint 03：程序管理和 ROM 导入置于左栏折叠区，RAM 视图、编辑和独立导入置于右栏。保持原生输入、文件选择、独立滚动与分隔线，错误显示具体位置而不打断 CPU 观察。BEQ 显示目标 / 警告，RAM 用 Δ 和字节高亮双重表达初始 / 运行差异。
+
+模式选择采用基于用户源码的 JellyRadio：受控 radio 语义、方向键 / Home / End、可见焦点，轻微横纵弹簧和邻项位移。首页采用 GradientASCII 的 field / glyph 渲染，深蓝灰、26px 字符网格、低密度与低透明度、缓慢漂移；标题及浅灰芯片保持视觉优先。背景不接收事件，不添加辉光后处理，20 FPS / DPR ≤1 / 约 1280×720 像素预算，离开首页释放；reduced-motion 与失败用 CSS 静态背景。CPU 仍为原单一持久 Canvas。授权见 `docs/THIRD_PARTY.md`。
+
 极窄屏三维标签较小，旋转放大或使用 HTML 面板观察。DPR 限制 1.5；固定 Canvas 绘制区域扩大，需要真实移动 GPU 进一步验证。当前无完整可访问性审计；所有架构状态都可从 HTML 中读取。逐帧测试用于验证坐标连续与状态边界，不替代真实设备视觉评审。

@@ -19,7 +19,7 @@ test('real program, trace replay, register edits and responsive workbench', asyn
   await expect(page.getByRole('button', { name: '运行', exact: true })).toBeDisabled({ timeout: 10000 })
   await page.getByRole('button', { name: '回放', exact: true }).click()
   await expect(page.getByTestId('register-3').locator('code')).toHaveText('12')
-  await page.getByRole('button', { name: '专业模式' }).click()
+  await page.getByRole('radio', { name: '专业模式' }).click()
   await expect(page.getByRole('heading', { name: 'RTL 信号快照' })).toBeVisible()
   await page.getByRole('button', { name: '03 执行 Compute' }).click()
   await page.getByRole('button', { name: '芯生首页', exact: true }).scrollIntoViewIfNeeded()
@@ -39,7 +39,7 @@ test('real program, trace replay, register edits and responsive workbench', asyn
   await page.getByRole('button', { name: '写入初始值' }).click()
   await expect(page.getByTestId('register-1').locator('code')).toHaveText('-1')
   await page.getByRole('button', { name: '恢复视角', exact: false }).click()
-  const canvas = page.locator('canvas')
+  const canvas = page.locator('.persistent-scene canvas')
   const bounds = await canvas.boundingBox()
   if (bounds) {
     await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)

@@ -1,4 +1,4 @@
-import { Component, Suspense, useEffect, useMemo, useRef, useState, type ComponentRef, type ReactNode, type RefObject } from 'react'
+import { Component, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentRef, type ReactNode, type RefObject } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Edges, Html, Line, OrbitControls } from '@react-three/drei'
 import { Group, Mesh, PerspectiveCamera, Vector3, type Material } from 'three'
@@ -39,11 +39,13 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
   const escapeX = useRef({ position: 18, velocity: 0 }), escapeY = useRef({ position: 14, velocity: 0 })
   const anchor = useRef({ x: .4, y: 0, width: 800, height: 600 })
   const initialized = useRef(false), autoView = useRef(true)
+  const transitionStarted = useRef(0)
   const open = scene === 'workbench'
   const timeline = useMemo(() => timelineFor(trace, phase), [trace, phase])
   const cameraHome = useMemo(() => new Vector3(10, -15, 23), [])
   const cameraPlane = useMemo(() => new Vector3(.5, -9, 28), [])
   const origin = useMemo(() => new Vector3(), []), projected = useMemo(() => new Vector3(), [])
+  useLayoutEffect(() => { transitionStarted.current = performance.now() }, [scene, viewVersion])
 
   useEffect(() => {
     let previousScroll = window.scrollY
@@ -69,6 +71,10 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
   useEffect(() => { autoView.current = true; document.body.style.cursor = ''; return () => { document.body.style.cursor = '' } }, [scene, viewVersion])
 
   useFrame(({ clock }, dt) => {
+    // The first render delta may include a long frame BEFORE the new target was
+    // committed (e.g. GPU readback or context teardown). Integrate only time
+    // spent under this target; later frames retain their full analytic delta.
+    dt = Math.min(dt, Math.max(0, (performance.now() - transitionStarted.current) / 1000))
     if (controls.current) controls.current.dampingFactor = 1 - Math.exp(-MOTION.orbitDamping * dt)
     const tState = reveal.current
     if (reduced) { tState.position = open ? 1 : 0; tState.velocity = 0 }
@@ -173,7 +179,7 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
         {WIRES.map(wire => <SignalFlow key={wire.id} wire={wire} transfer={timeline.transfers.find(t => t.id === wire.id)} timeline={timeline} epoch={playbackEpoch} inspection={inspection} reduced={reduced} />)}
         {MODULES.map((module, i) => <group key={module.id} ref={el => { blocks.current[i] = el }}><ModuleBlock module={module} labelHost={labelHost} value={valueFor(module.id)} reveal={reveal.current} timeline={timeline} epoch={playbackEpoch} inspection={inspection} reduced={reduced} open={open} /></group>)}
       </group>
-      <group ref={cover} onClick={event => { event.stopPropagation(); if (!open) enter() }} onPointerOver={() => { if (!open) document.body.style.cursor = 'pointer' }} onPointerOut={() => { document.body.style.cursor = '' }}>
+      <group ref={cover} onClick={event => { event.stopPropagation(); if (!open && event.delta <= 4) enter() }} onPointerOver={() => { if (!open) document.body.style.cursor = 'pointer' }} onPointerOut={() => { document.body.style.cursor = '' }}>
         {[0, 1, 2, 3].map(i => <group key={i}>
           <mesh><boxGeometry args={[3.6, 3.6, .7]} /><meshStandardMaterial color="#19212b" roughness={.6} /><Edges color="#b8c2ce" /></mesh>
           <mesh position={[0, 0, .36]}><boxGeometry args={[3.6, 3.6, .01, 6, 6]} /><meshBasicMaterial color="#738194" wireframe /></mesh>

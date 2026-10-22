@@ -20,7 +20,7 @@ test('viewport shell, independent scroll, separators and compact zoom layouts', 
   const header = await page.locator('.app-header').boundingBox()
   await page.getByRole('button', { name: '进入芯片' }).click()
   expect(await page.locator('.app-header').boundingBox()).toEqual(header)
-  const canvas = await page.locator('canvas').elementHandle()
+  const canvas = await page.locator('.persistent-scene canvas').elementHandle()
   for (const [width, height] of [[1280, 720], [1440, 900], [1920, 1080]]) {
     await page.setViewportSize({ width, height })
     await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
@@ -62,7 +62,7 @@ test('viewport shell, independent scroll, separators and compact zoom layouts', 
     expect(Number(await separator.getAttribute('aria-valuenow'))).not.toBe(before)
     await separator.dblclick()
   }
-  expect(await page.locator('canvas').evaluate((node, original) => node === original, canvas)).toBe(true)
+  expect(await page.locator('.persistent-scene canvas').evaluate((node, original) => node === original, canvas)).toBe(true)
   // Equivalent CSS viewport sizes for 125% / 150% zoom at a 1440×900 window.
   // This covers reflow, not a claim about native browser chrome or device rasterization.
   for (const [width, height] of [[1152, 720], [960, 600], [390, 844]]) {

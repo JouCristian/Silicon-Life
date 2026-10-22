@@ -304,6 +304,25 @@ html { scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: #526174
 
 
 .module-label .module-short { display: none; }
+.program-actions, .instruction-actions { display: flex; flex-wrap: wrap; gap: 7px; margin: 10px 0; }
+.instruction-actions button { padding: 6px 9px; border: 1px solid var(--line); border-radius: 4px; font-size: 11px; background: #ffffff05; }
+.instruction-actions button:disabled { opacity: .35; }
+.program-tools, .hex-panel, .memory-edit { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 12px; }
+.program-tools summary, .hex-panel summary, .memory-edit summary { cursor: pointer; color: var(--muted); font-size: 12px; padding-block: 4px; }
+.hex-panel { padding-bottom: 10px; }
+.file-field, .import-strategy { display: grid; gap: 6px; font-size: 11px; color: var(--muted); margin-block: 12px; min-width: 0; }
+.file-field input { min-width: 0; width: 100%; }
+.file-field input[type="file"] { font-size: 11px; padding: 7px 0; background: none; }
+.file-field input::file-selector-button { background: #20252c; color: #ced6df; border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; margin-right: 7px; cursor: pointer; }
+.hex-preview { background: #ffffff04; border: 1px solid var(--line); padding: 9px; margin-block: 10px; font-size: 10px; overflow-wrap: anywhere; }
+.hex-preview p { color: var(--muted); margin: 4px 0 8px; }
+.hex-preview ol { padding: 0; list-style: none; }
+.hex-preview li { display: grid; gap: 3px; margin-top: 8px; }
+.hex-preview li span { color: var(--muted); }
+.error { overflow-wrap: anywhere; white-space: pre-wrap; }
+.branch-target { color: #8ea9cc; }
+.empty-program { padding-block: 24px; }
+.memory-row b, .changed-byte { color: #9ec4ff; font-weight: 500; }
 .scene-root[data-compact-labels="true"] .module-label :is(.module-full, span, code) { display: none; }
 .scene-root[data-compact-labels="true"] .module-label .module-short { display: block; font-size: 9px; }
 .scene-root[data-medium-labels="true"] .module-label b { font-size: 9px; }

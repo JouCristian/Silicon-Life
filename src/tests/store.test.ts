@@ -3,7 +3,7 @@ import { useLabStore } from '../stores/useLabStore'
 import { DEMO_WORDS } from '../data/programs'
 
 const store = () => useLabStore.getState()
-beforeEach(() => { useLabStore.setState({ program: DEMO_WORDS }); store().reset() })
+beforeEach(() => { useLabStore.setState(useLabStore.getInitialState(), true); useLabStore.setState({ program: DEMO_WORDS }); store().reset() })
 
 describe('trace transport is separate from architectural commit', () => {
   it('replay, stage seeking and pause never write registers again', () => {

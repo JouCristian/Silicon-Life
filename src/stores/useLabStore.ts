@@ -5,11 +5,26 @@ import { PHASES, type CpuState, type ExecutionTrace, type Phase } from '../core/
 import { DEMO_WORDS, PROGRAMS } from '../data/programs'
 import { presentationClock, timelineFor } from '../motion/timeline'
 import { AUTO_PLAYBACK, PLAYBACK_RATES, transferSteps, type TransferPlayback } from '../motion/transferPlayback'
+import { createMemory, type DataMemory } from '../core/memory'
+import { insertWord, moveWord, removeWord, validateProgram } from '../io/program'
 
 interface LabStore {
   cpu: CpuState
   program: readonly number[]
   programId: string
+  customProgram: readonly number[]
+  customBaseline: readonly number[]
+  selectedInstruction: number
+  initialMemory: DataMemory
+  initialRegisters: readonly number[]
+  selectInstruction: (index: number) => void
+  createCustomProgram: (source?: readonly number[]) => void
+  restoreCustomProgram: () => void
+  insertInstruction: (index: number, instruction?: Instruction) => void
+  deleteInstruction: (index: number) => void
+  moveInstruction: (from: number, to: number) => void
+  importProgram: (words: readonly number[], append?: boolean) => void
+  setInitialMemory: (memory: DataMemory) => void
   loadProgram: (id: string) => void
   history: readonly ExecutionTrace[]
   traceIndex: number
@@ -42,8 +57,16 @@ interface LabStore {
   resetView: () => void
 }
 
+function resetSession(s: Pick<LabStore, 'initialRegisters' | 'initialMemory' | 'playbackEpoch'>) {
+  return { cpu: initialState(s.initialRegisters, s.initialMemory), history: [], traceIndex: -1,
+    phase: 'fetch' as const, inspection: false, transferPlayback: AUTO_PLAYBACK,
+    playbackEpoch: s.playbackEpoch + 1, playing: false, running: false, runSteps: 0 }
+}
+
 export const useLabStore = create<LabStore>((set, get) => ({
   cpu: initialState(), program: DEMO_WORDS, programId: 'arithmetic', history: [], traceIndex: -1,
+  customProgram: Object.freeze([]), customBaseline: Object.freeze([]), selectedInstruction: 0,
+  initialMemory: createMemory(), initialRegisters: Object.freeze(Array(32).fill(0)),
   phase: 'fetch', playbackEpoch: 0, inspection: false, playing: false, running: false, runSteps: 0,
   mode: 'demo', scene: 'chip', viewVersion: 0,
   playbackRate: .5, transferPlayback: AUTO_PLAYBACK,
@@ -70,12 +93,13 @@ export const useLabStore = create<LabStore>((set, get) => ({
     }
   },
   pause: () => set({ running: false, playing: false }),
-  reset: () => set(s => ({ cpu: initialState(), history: [], traceIndex: -1, phase: 'fetch', inspection: false, transferPlayback: AUTO_PLAYBACK, playbackEpoch: s.playbackEpoch + 1, playing: false, running: false, runSteps: 0 })),
+  reset: () => set(s => resetSession(s)),
   loadProgram: id => {
+    const s = get()
     const preset = PROGRAMS.find(p => p.id === id)
-    if (!preset) throw new Error('未知教学程序')
-    get().reset()
-    set({ programId: id, program: preset.instructions.map(encode) })
+    if (id !== 'custom' && !preset) throw new Error('未知教学程序')
+    const program = id === 'custom' ? s.customProgram : validateProgram(preset!.instructions.map(encode))
+    set({ ...resetSession(s), programId: id, program, selectedInstruction: program.length ? 0 : -1 })
   },
   tick: () => {
     const s = get()
@@ -111,7 +135,50 @@ export const useLabStore = create<LabStore>((set, get) => ({
     if (!Number.isInteger(index) || index < 0 || index >= get().program.length) throw new Error('程序索引无效')
     const program = [...get().program]
     program[index] = word
-    set(s => ({ program, cpu: initialState(), history: [], traceIndex: -1, phase: 'fetch', playing: false, running: false, runSteps: 0, inspection: false, transferPlayback: AUTO_PLAYBACK, playbackEpoch: s.playbackEpoch + 1 }))
+    const checked = validateProgram(program), s = get()
+    const baseline = s.programId === 'custom' ? s.customBaseline : Object.freeze([...s.program])
+    set({ ...resetSession(get()), programId: 'custom', program: checked, customProgram: checked, customBaseline: baseline, selectedInstruction: index })
+  },
+  selectInstruction: index => {
+    if (!Number.isInteger(index) || index < 0 || index >= get().program.length) throw new Error('程序索引无效')
+    set({ selectedInstruction: index })
+  },
+  createCustomProgram: (source = []) => {
+    const program = validateProgram(source)
+    set({ ...resetSession(get()), programId: 'custom', program, customProgram: program, customBaseline: program, selectedInstruction: program.length ? 0 : -1 })
+  },
+  restoreCustomProgram: () => {
+    const s = get()
+    if (s.programId !== 'custom') throw new Error('请先选择自定义程序')
+    const program = validateProgram(s.customBaseline)
+    set({ ...resetSession(s), program, customProgram: program, selectedInstruction: program.length ? 0 : -1 })
+  },
+  insertInstruction: (index, instruction = { op: 'ADDI', rd: 1, rs1: 0, imm: 0 }) => {
+    const s = get(), program = insertWord(s.program, index, encode(instruction))
+    const baseline = s.programId === 'custom' ? s.customBaseline : Object.freeze([...s.program])
+    set({ ...resetSession(s), programId: 'custom', program, customProgram: program, customBaseline: baseline, selectedInstruction: index })
+  },
+  deleteInstruction: index => {
+    const s = get(), program = removeWord(s.program, index)
+    const baseline = s.programId === 'custom' ? s.customBaseline : Object.freeze([...s.program])
+    set({ ...resetSession(s), programId: 'custom', program, customProgram: program, customBaseline: baseline, selectedInstruction: program.length ? Math.min(index, program.length - 1) : -1 })
+  },
+  moveInstruction: (from, to) => {
+    const s = get(), program = moveWord(s.program, from, to)
+    const baseline = s.programId === 'custom' ? s.customBaseline : Object.freeze([...s.program])
+    set({ ...resetSession(s), programId: 'custom', program, customProgram: program, customBaseline: baseline, selectedInstruction: to })
+  },
+  importProgram: (words, append = false) => {
+    const program = validateProgram(append ? [...get().program, ...words] : words)
+    if (!words.length) throw new Error('导入程序不能为空')
+    get().createCustomProgram(program)
+  },
+  setInitialMemory: memory => {
+    const s = get()
+    if (s.cpu.retired || s.playing || s.running) throw new Error('请先复位，再配置初始 RAM')
+    if (memory.length !== 1024) throw new Error('初始 RAM 必须恰好为 1024 字节')
+    const checked = createMemory(memory)
+    set({ ...resetSession({ ...s, initialMemory: checked }), initialMemory: checked })
   },
   stepTransfer: () => {
     const s = get(), trace = s.history[s.traceIndex], steps = transferSteps(trace)
@@ -135,9 +202,10 @@ export const useLabStore = create<LabStore>((set, get) => ({
   setInitialRegister: (index, value) => {
     if (get().cpu.retired !== 0 || get().running || get().playing) throw new Error('请先复位，再设置初始寄存器')
     if (!Number.isInteger(index) || index < 1 || index > 31) throw new Error('x0 恒为 0；仅可编辑 x1–x31')
-    const registers = [...get().cpu.registers]
+    const registers = [...get().initialRegisters]
     registers[index] = value
-    set({ cpu: initialState(registers, get().cpu.memory) })
+    const cpu = initialState(registers, get().initialMemory)
+    set({ ...resetSession({ ...get(), initialRegisters: cpu.registers }), initialRegisters: cpu.registers })
   },
   setMode: mode => set({ mode }),
   enter: () => set(s => ({ scene: 'workbench', viewVersion: s.viewVersion + 1 })),

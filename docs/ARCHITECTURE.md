@@ -1,4 +1,4 @@
-# Sprint 02 架构
+# 芯生架构（Sprint 03）
 
 ```text
 编辑器 / 程序选择 → Store action → encoded program
@@ -22,7 +22,7 @@
 
 ## Store 和播放
 
-`step` 只提交一次；`tick` 只切观察阶段，连续运行在上一快照讲解完后才提交下一条。`playbackEpoch` 使重播和跳转可明确重置播放位置。暂停保留 PresentationClock，阶段跳转设置 inspection 到该阶段末端；`resumePlayback` 仅恢复快照，历史快照也可继续，不调用 Core。复位清空状态、内存和记录，最大执行 1000 条。
+`step` 只提交一次；`tick` 只切观察阶段，连续运行在上一快照讲解完后才提交下一条。`playbackEpoch` 使重播和跳转可明确重置播放位置。暂停保留 PresentationClock，阶段跳转设置 inspection 到该阶段末端；`resumePlayback` 仅恢复快照，历史快照也可继续，不调用 Core。复位恢复初始寄存器 / RAM、清空执行记录，最大执行 1000 条。
 
 `usePlaybackDriver` 使用 requestAnimationFrame 与秒制帧时间，后台标签暂停计时，恢复时不累计隐藏时间。不逐帧写 Zustand，因此不会让整个 React 树按帧重渲染。动态媒体查询订阅处理 reduced-motion 改变。
 
@@ -53,3 +53,29 @@ PresentationClock 的 seek 是明确的观察跳转；update 按 playbackRate �
 ## 边界
 
 无 RTL 差分验证、完整指令集、完整异常控制、持久化或后端。有限内存越界与程序结束属于宿主策略。固定 Canvas 增加绘制区域，DPR 上限 1.5，未使用 Bloom、Blur 或粒子系统；真实设备性能尚需评估。
+
+## Sprint 03 程序与配置边界
+
+`src/io/program.ts` 负责宿主 256 条容量、不可变编辑、地址 / BEQ 目标列表与 Core decode 子集校验；不增加指令或改变分支语义。`src/io/hex.ts` 有界解析、展开与标准导出；`memoryImage.ts` 验证地址 / 数值并生成完整的小端 RAM 镜像。它们没有 React、Three 或 DOM 依赖；文件选择 / Blob 下载只在 `HexImportPanel`。文件异步读取用世代编号丢弃旧结果，确认前没有 Store 写入。
+
+Store 持有 `programId`、当前 ROM、单份 customProgram / customBaseline、选中索引、initialMemory / initialRegisters。切换、编辑、导入先完整校验，成功后由 `resetSession` 在单次 Zustand set 中重建 CPU、清空 Trace / 传递游标并推进 epoch；观察者不会看到新 ROM 搭配旧 Trace 的中间状态。复制 / 新建 / 导入建立自定义恢复基线；修改预设会创建副本，预设常量不变。
+
+初始配置是独立不可变数据；每次 `initialState` 复制为新的架构状态。SW 仅生成运行内存，Reset / 改程序使用初始配置重新初始化。配置 action 要求 retired=0 且 !running / !playing；运行中不能从 RAM / 寄存器编辑产生写竞争。UI 只调用 Store action。文件、配置及自定义程序仅存会话内存，刷新清除。
+
+CPU 固定 Canvas 未拆分或重建。首页独立 lazy 装饰 Canvas 不属于 CPU 场景；`GradientASCII` 离开首页、偏好改变或出错时共用完整资源释放，20 FPS / DPR 1 / 固定像素预算。JellyRadio 仅切 mode。来源、适配与授权见 `THIRD_PARTY.md`。
+
+长帧下首帧 delta 可能跨越目标切换之前的时间。场景在 scene / viewVersion 提交时记录时间，仅首段按该目标实际生效的时长积分，后续保留完整帧 delta 与既有解析阻尼公式；不将切换前截图 / GPU 上下文处理的耗时计入新目标。拖拽超过 4px 不触发芯片进入操作，避免 OrbitControls 松手被当作点击。
+
+## 未来 MMIO 接口规划（未实施）
+
+本轮保留稳定 Core。下列是后续需用户确认的设计提案，不是现有接口或已验证 RTL 信号；**没有预设 Logisim MMIO 地址、分辨率或颜色编码**。
+
+1. **区域映射**：配置表描述 `{ id, startByte, sizeBytes, kind: ram | mmio, permissions }`；校验整数、范围、溢出、重叠与地址对齐。RAM 和设备地址空间由配置显式定义，未映射访问返回明确的宿主故障，不伪造 RTL trap cause。不要硬编码设备地址。
+2. **地址分派**：框架无关的 MemoryBus / AddressSpace 根据 CPU 字节地址定位区域，换算设备本地偏移，检查位宽 / 对齐 / 字节选通后调用 RAM adapter 或设备 adapter。未来重构先以现有内存结果、异常原子性和 Trace 做回归，再接设备。
+3. **事务**：ReadTransaction 描述地址、宽度、访问编号；WriteTransaction 另含原始数据 / 字节选通。ReadResult 带 data / fault；WriteResult 带候选 deviceState / events / fault。设计 prepare → validate → commit 的一次架构边沿，错误访问不能部分修改 RAM 或设备；CPU 故障时丢弃候选状态。可能有副作用的读取同样候选化。
+4. **设备模型**：纯 TypeScript `reset(config, initialState)`、`prepareRead`、`prepareWrite` 返回不可变设备状态与语义事件；不 import React / Three / DOM。初始设备配置与运行状态分离，Reset 恢复配置。设备注册表和配置验证由宿主协调，不通过展示组件直接写设备。
+5. **事件 Trace**：提交成功后记录 `{ accessId, regionId, byteAddress, offset, width, data, strobes, deviceEvents }` 并关联同一 ExecutionTrace。像素事件由真实写事务解码，Trace 回放只绘制历史快照，不再次执行 write。访问事件和自定义设备事件标为宿主元数据，不冒充 RTL 端口。
+6. **展示插件**：工作台预留独立设备区域 / 标签页；设备 id 映射 React 或 Three renderer，renderer 只读配置、设备快照和 Trace。插件卸载清理 Canvas / 纹理，不能改变 CPU 提交、PC 或 RAM。保留 CPU 主场景与无 WebGL 文本观察能力。
+7. **显示配置入口**：用户先确认地址范围、寄存器或帧缓冲布局、宽高、像素格式 / 颜色编码、字节序、行跨度和刷新策略；再验证容量与写入映射。自定义分辨率设合理上限。没有设备配置时保持关闭；不据现有 Logisim 经验猜测常量。
+
+下一阶段应以纯 bus / device 单测、SW 实际写入、Reset 和历史回放不重复写入作为接口落地基准，再实现最小显示插件。

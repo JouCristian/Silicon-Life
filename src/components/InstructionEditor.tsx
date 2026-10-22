@@ -3,7 +3,7 @@ import { assembly, binary, decode, encode, hex, type Instruction } from '../core
 import { useLabView } from '../stores/useLabStore'
 
 function RegisterSelect({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) {
-  return <label>{label}<select value={value} onChange={event => onChange(Number(event.target.value))}>
+  return <label>{label}<select aria-label={label} value={value} onChange={event => onChange(Number(event.target.value))}>
     {Array.from({ length: 32 }, (_, i) => <option key={i} value={i}>x{i}</option>)}
   </select></label>
 }
@@ -20,7 +20,7 @@ export function InstructionEditor({ index }: { index: number }) {
   return <section className="editor">
     <div className="section-title"><h3>指令编码器</h3><span>第 {index + 1} 条</span></div>
     <div className="editor-fields">
-      <label>指令<select value={draft.op} onChange={e => {
+      <label>指令<select aria-label="指令" value={draft.op} onChange={e => {
         const op = e.target.value as Instruction['op']
         const rd = 'rd' in draft ? draft.rd : 3, rs1 = draft.rs1
         change(op === 'ADD' ? { op, rd, rs1, rs2: 2 } : op === 'BEQ' || op === 'SW' ? { op, rs1, rs2: 2, imm: 0 } : { op, rd, rs1, imm: 0 })
@@ -34,6 +34,6 @@ export function InstructionEditor({ index }: { index: number }) {
     <code className="binary-code" aria-label="32 位机器码">{error ? '请修正指令参数' : binary(word).match(/.{4}/g)?.join(' ')}</code>
     {error && <p role="alert" className="error">{error}</p>}
     <button className="button subtle full" disabled={!!error} onClick={() => { updateInstruction(index, instruction); setSaved(true) }}>应用到程序并复位</button>
-    <p className="field-help" role="status">{saved ? `已应用 ${assembly(instruction)}` : '应用后清空执行记录、寄存器与数据内存。'}</p>
+    <p className="field-help" role="status">{saved ? `已应用 ${assembly(instruction)}` : '应用后复位执行，保留初始 RAM 和寄存器配置。'}</p>
   </section>
 }

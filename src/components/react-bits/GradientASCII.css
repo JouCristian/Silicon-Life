@@ -1,0 +1,5 @@
+/* React Bits adaptation; (c) 2026 David Haz, third_party/react-bits/LICENSE.md. */
+.gradient-ascii-container { position: fixed; inset: 76px 0 40px; z-index: 0; overflow: hidden; pointer-events: none !important; background: radial-gradient(ellipse at 70% 75%, #1a2c4222, transparent 65%); }
+.gradient-ascii-container::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #101114cc, transparent 60%); }
+.gradient-ascii-canvas { width: 100%; height: 100%; display: block; opacity: .5; pointer-events: none !important; }
+@media (prefers-reduced-motion: reduce) { .gradient-ascii-canvas { display: none; } }

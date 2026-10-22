@@ -1,23 +1,24 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef } from 'react'
 import { AnimatePresence } from 'motion/react'
 import { useMotionPreference } from './motion/useMotionPreference'
 import { assembly, decode, hex } from './core/isa'
-import { InstructionEditor } from './components/InstructionEditor'
+import { ProgramPanel } from './components/ProgramPanel'
 import { RegisterPanel } from './components/RegisterPanel'
 import { MemoryPanel } from './components/MemoryPanel'
-import { PROGRAMS } from './data/programs'
 import { TracePanel } from './components/TracePanel'
 import { useLabView } from './stores/useLabStore'
 import { ScenePresence } from './components/ScenePresence'
 import { usePlaybackDriver } from './motion/usePlaybackDriver'
 import { MOTION } from './motion/design'
 import { WorkbenchLayout } from './components/WorkbenchLayout'
+import { JellyRadio } from './components/react-bits/JellyRadio'
 
 const CpuScene = lazy(() => import('./scenes/CpuScene'))
+const GradientASCII = lazy(() => import('./components/react-bits/GradientASCII'))
+const MODES = [{ value: 'demo' as const, label: '演示模式' }, { value: 'pro' as const, label: '专业模式' }]
 
 export default function App() {
-  const { cpu, program, programId, loadProgram, history, scene, mode, setMode, enter, home, step, run, pause, reset, resetView, running, playing, trace, phase } = useLabView()
-  const [selected, setSelected] = useState(0)
+  const { cpu, program, scene, mode, setMode, enter, home, step, run, pause, reset, resetView, running, playing, trace, phase } = useLabView()
   const reduced = useMotionPreference()
   const anchorRef = useRef<HTMLDivElement>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
@@ -31,10 +32,10 @@ export default function App() {
     }
   }, [scene])
   const open = scene === 'workbench'
-  const preset = PROGRAMS.find(p => p.id === programId) ?? PROGRAMS[0]
   const current = program[cpu.pc / 4]
   const status = playing ? '正在讲解' : running ? '运行中' : cpu.status === 'halted' ? '程序完成' : cpu.status === 'fault' ? '执行停止' : '就绪'
   return <div className={`app ${open ? 'is-workbench' : 'is-home'}`}>
+    {!open && <Suspense fallback={null}><GradientASCII /></Suspense>}
     <div className="persistent-scene"><Suspense fallback={<div className="scene-fallback">正在加载三维引擎…</div>}><CpuScene anchorRef={anchorRef} /></Suspense></div>
     <header className="app-header">
       <button className="brand" onClick={home} aria-label="芯生首页"><span className="brand-mark">芯</span><span>芯生<span className="brand-en">SILICON LIFE</span></span></button>
@@ -45,15 +46,10 @@ export default function App() {
     <main>
       <AnimatePresence>{!open && <ScenePresence key="home" as="section" className="home-copy"><span className="intro-label">SWUST-OC · 交互式 CPU 实验室</span><h1>一条指令，<br />看见芯片的思考。</h1><p>从一颗芯片，走进真实的数据通路。<br />让每一次运算，都变得清晰可见。</p><button ref={homeButtonRef} className="button primary enter-button" onClick={enter}>进入芯片 <span aria-hidden="true">↗</span></button><span className="home-hint">也可以点击芯片开始探索</span></ScenePresence>}</AnimatePresence>
 
-      <AnimatePresence>{open && <ScenePresence key="heading" className="workspace-heading" delay={MOTION.ui.stagger}><div><div className="breadcrumb">芯生 / 实验室 / <span>单周期 CPU</span></div><h1 ref={headingRef} tabIndex={-1}>让指令，走一遍。</h1></div><div className="segmented mode-switch" aria-label="工作台模式"><button aria-pressed={mode === 'demo'} onClick={() => setMode('demo')}>演示模式</button><button aria-pressed={mode === 'pro'} onClick={() => setMode('pro')}>专业模式</button></div></ScenePresence>}</AnimatePresence>
+      <AnimatePresence>{open && <ScenePresence key="heading" className="workspace-heading" delay={MOTION.ui.stagger}><div><div className="breadcrumb">芯生 / 实验室 / <span>单周期 CPU</span></div><h1 ref={headingRef} tabIndex={-1}>让指令，走一遍。</h1></div><JellyRadio items={MODES} value={mode} onChange={setMode} ariaLabel="工作台模式" /></ScenePresence>}</AnimatePresence>
 
       <WorkbenchLayout open={open} program={<AnimatePresence>{open && <ScenePresence key="program" id="program-region" label="程序与指令编辑" as="aside" className="program-panel panel-scroll" delay={MOTION.ui.stagger * 2}>
-          <div className="section-title"><h2>程序</h2><span>{program.length} 条指令</span></div>
-          <select aria-label="教学程序" value={programId} onChange={e => { setSelected(0); loadProgram(e.target.value) }}>{PROGRAMS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
-          <p className="program-name"><span>{preset.summary}</span></p>
-          <ol className="program-list">{program.map((word, index) => <li key={index} className={`${cpu.pc === index * 4 ? 'next-instruction' : ''} ${trace?.before.pc === index * 4 ? 'last-instruction' : ''}`}><button onClick={() => setSelected(index)} aria-pressed={selected === index}><span className="line-number">{String(index + 1).padStart(2, '0')}</span><span><code>{assembly(decode(word))}</code><small>{hex(index * 4)}<span>{hex(word)}</span></small></span><span className="line-state">{history.some(t => t.before.pc === index * 4) ? '✓' : cpu.pc === index * 4 ? '←' : ''}</span></button></li>)}</ol>
-          <InstructionEditor key={`${programId}-${selected}`} index={selected} />
-          <div className="sample-goal"><span>预设目标</span><p>{preset.goal}</p></div>
+          <ProgramPanel />
         </ScenePresence>}</AnimatePresence>} scene={<>
           <AnimatePresence>{open && <ScenePresence key="toolbar" className="scene-toolbar" delay={MOTION.ui.stagger * 3}><span><span className="tiny-dot" />Teaching plane <small>2.5D</small></span><button className="text-button" onClick={resetView}>↺ 恢复视角</button></ScenePresence>}</AnimatePresence>
           <div ref={anchorRef} className="scene-viewport" data-testid="scene-anchor" aria-label={open ? 'CPU 三维交互区域' : '芯片三维交互区域'} />
@@ -66,6 +62,6 @@ export default function App() {
         state={<AnimatePresence>{open && <ScenePresence key="state" id="state-region" label="寄存器与数据内存" as="aside" className="state-panel panel-scroll" delay={MOTION.ui.stagger * 3}><RegisterPanel /><MemoryPanel /></ScenePresence>}</AnimatePresence>} />
     </main>
 
-    <footer className="app-footer"><span>SWUST-OC 一生一芯学习小组</span><span>{open ? '真实执行 · 快照驱动可视化' : 'Cinematic Reveal + Teaching Plane'}</span><span>Sprint 02.1 <span className="separator">/</span> 2026</span></footer>
+    <footer className="app-footer"><span>SWUST-OC 一生一芯学习小组</span><span>{open ? '真实执行 · 快照驱动可视化' : 'Cinematic Reveal + Teaching Plane'}</span><span>Sprint 03 <span className="separator">/</span> 2026</span></footer>
   </div>
 }

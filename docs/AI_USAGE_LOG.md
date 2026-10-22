@@ -1,5 +1,15 @@
 # AI 使用记录
 
+## 2026-10-22 · Sprint 03
+
+- 用户贡献：自定义程序与 HEX / RAM 工作流、会话状态要求、MMIO 未来目标、验收条件；提供 React Bits JellyRadio 和 GradientASCII 完整 JSX / CSS 源码。
+- Codex 贡献：在最新 main `1e3a81e` 的本地 `feat/sprint-03-program-memory` 实现程序管理、PC / BEQ 目标说明、有界纯 HEX 解析、导入预览与原子确认、8/32 位初始 RAM 编辑和导出、初始寄存器 / RAM 复位机制、测试、示例与文档。
+- 使用已读取的 impeccable 产品界面指导，保留既有黑灰蓝、固定 CPU Canvas、独立滚动与分隔线。基于用户源码适配 React Bits 的弹簧 radio 与 field / glyph WebGL2 渲染，未假称独立原创这些组件。完整来源、许可证及适配说明见 `THIRD_PARTY.md` 和 `third_party/react-bits/LICENSE.md`。
+- 实际阅读并保留官方 MIT + Commons Clause 许可；没有新增动画依赖、生成式图片、音频或视频素材，没有连接 v0。
+- 浏览器验收发现芯片拖拽后的 click 误触与首帧弹簧对切换前长帧的错误积分，分别加入位移判定及新目标生效时间界限。没有放宽已有连续性或 CPU 正确性断言。
+- CPU Core、预设常量、Trace 执行语义与原始 RTL 未修改。MMIO 仅完成框架无关的架构提案，未猜测用户旧设备地址 / 颜色编码。
+- 基线类型检查、53 项单元、构建和 9 条 E2E 通过；新增验证见 `VALIDATION.md`。未执行 Push、PR、Merge 或部署，等待本地视觉验收。
+
 ## 2026-10-22 · Sprint 02.1
 
 - 后续 Git 授权：用户确认本地成果后，另行批准正常 Push、更新 PR #1 与修复 CI。首次云端 E2E 暴露 HTML 播放完成与 Three.js 上一渲染帧的读取竞态；Codex 增加只读轮次/状态/终点诊断，并等待实际终点绘制后继续严格冻结断言。未修改 CPU 正确性测试期望，未 Merge 或部署。

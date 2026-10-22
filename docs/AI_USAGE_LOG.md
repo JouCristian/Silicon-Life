@@ -69,3 +69,10 @@
 
 - 用户另行授权 Push、创建面向 main 的 PR 和修复远程 CI，明确禁止 Merge、Force Push 和 Sprint 03。已推送 feat/sprint-02 并创建 PR #1。
 - 忽略本地 .vite 依赖缓存，保留文件。读取真实 Actions 日志后定位 1.8 秒固定采样窗口在云端仅收集 10 帧的失败；改为在 10 秒上限内满足时长和至少 16 个不同渲染时间戳，保留连续性基准，增加 CI 帧记录上传。没有改动 CPU 或产品视觉行为。
+
+## 2026-10-23 · V3 CI 专项排查
+
+- 读取真实 PR #4 Actions 日志及失败 artifact；使用 impeccable 的性能检查规范，没有重新设计视觉。
+- 原代码四个相关 E2E 在本机全部通过。两次有限修复尝试分别为 3/4、2/4；捕获首次显露帧空洞和候选异步编译 pageerror，遵照用户两次上限停止。
+- 失败补丁、帧数据与上下文归档于忽略目录 .local/v3-ci-investigation/；已回退所有运行时与测试候选。没有放宽 timeout、跳过测试或修改 CPU 期望。
+- 只提交 docs/V3_CI_INVESTIGATION.md 和此贡献记录；未 Push、Merge、部署或移动冻结 Tag。完整测试矩阵未运行，不宣称修复完成。

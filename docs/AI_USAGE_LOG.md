@@ -1,5 +1,13 @@
 # AI 使用记录
 
+## 2026-10-22 · Sprint 03.1
+
+- 用户贡献：明确验收问题与实用性优先级，要求 65536 条 ROM、10 项目、IndexedDB、完整 JSON 备份、统一文件控件和明确 RAM 模式；禁止 Push / Merge / 部署及 MMIO / ISA / 首页视觉扩展。
+- Codex 贡献：分析多处 256 / 1000 硬限制、整表 DOM / decode、无界 Trace、全 RAM 复制和单份会话状态；实现紧凑只读 ROM、分页 + PC 跳转、分批快跑与可续预算、有界历史、大 RAM 页共享、项目模型与 JSON、IndexedDB 串行保存 / 冲突保护、Worker 文件解析和必要 UI 修复。
+- 沿用已读取的 impeccable 产品界面指导与既有设计系统，没有新增复杂 UI 框架、依赖或首页动效，React Bits 源码及授权保持。
+- 保留 CPU 编码、32 位算术、访存对齐与原子性基准。既有测试只适配明确变化的容量 / 项目作用域 / 预算策略、紧凑表示和新 UI 流程，没有修改预设 CPU 结果来掩盖失败。新增真实大程序、不可变页、项目事务与实际浏览器失败注入 / 性能验证。
+- Core 改动限于 ArrayLike ROM 接口、未知指令的 PC 信息和不可变内存表示；原 RTL 与 ISA / Trace 信号计算未改。所有文件导入仅在本机，不调用 v0，不使用子 agent，不创建远程 PR 或触发部署。
+
 ## 2026-10-22 · Sprint 03
 
 - 用户贡献：自定义程序与 HEX / RAM 工作流、会话状态要求、MMIO 未来目标、验收条件；提供 React Bits JellyRadio 和 GradientASCII 完整 JSX / CSS 源码。

@@ -83,3 +83,7 @@ imm_gen.v     C04EFE9DB95DEA3140C324C4A5712A6F8A2564BF061AD1E4817AF040EFDE5F37
 pc.v          49761D9F18BC5D00CABE55730489CFEA402DAE43CC6103C84D88BC34410A847C
 regfile.v     AB0D4A49F83F1BD739081AC16367A24C27872D40E2C87925A12309D6F22D6743
 ```
+
+## Sprint 03.1 主机扩展
+
+本轮仅扩大宿主 ROM 至 65536 条、RAM 可选 1 / 64 / 256 KiB，增加紧凑只读 ROM / 分页不可变 RAM 表示。CPU 取址 PC/4、小端访存、对齐、选通、一次提交和所有已有 Trace 信号仍按前述五条指令映射。CPU Core 的接口接受 ArrayLike ROM，未知指令错误增加 PC；未新增 RTL 控制线或 ISA。主机执行预算、项目、IndexedDB、分页列表、Worker 均不属于 RTL。高地址 MMIO 未实施，超出 RAM 窗口仍拒绝，不虚构设备地址。原 RTL 保持只读，未进行 RTL 联合仿真。

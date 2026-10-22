@@ -11,6 +11,7 @@ export function usePlaybackDriver(reduced: boolean) {
       const dt = previous && !document.hidden ? (now - previous) / 1000 : 0
       previous = now
       const s = useLabStore.getState()
+      if (s.fastRunning && !document.hidden) s.fastBatch()
       const timeline = timelineFor(s.history[s.traceIndex], s.phase)
       const duration = s.transferPlayback.mode === 'transfer' ? transferSteps(s.history[s.traceIndex])[s.transferPlayback.index]?.end ?? timeline.duration : timeline.duration
       const rate = s.playbackRate * (reduced ? duration / MOTION.flow.reduced : 1)

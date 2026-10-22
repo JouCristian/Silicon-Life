@@ -1,4 +1,5 @@
 import { createMemory, MEMORY_BYTES, readWord, writeWord, type DataMemory } from '../core/memory'
+import { PagedMemory } from '../core/pagedMemory'
 import { u32 } from '../core/isa'
 import type { CellWidth, HexImage } from './hex'
 
@@ -11,24 +12,25 @@ export function parseValue(text: string, width: CellWidth): number {
   return width === 32 ? u32(value) : value
 }
 
-export function checkAddress(address: number, width: CellWidth, count = 1): void {
+export function checkAddress(address: number, width: CellWidth, count = 1, capacity = MEMORY_BYTES): void {
   const size = width / 8
-  if (!Number.isInteger(address) || address < 0 || !Number.isInteger(count) || count < 1 || address + count * size > MEMORY_BYTES) throw new Error('数据超出 1024 字节 RAM 边界')
+  if (!Number.isInteger(address) || address < 0 || !Number.isInteger(count) || count < 1 || address + count * size > capacity) throw new Error(`数据超出 ${capacity} 字节 RAM 边界`)
   if (address % size) throw new Error('32 位数据必须按 4 字节对齐')
 }
 
 export function editMemory(memory: DataMemory, address: number, text: string, width: CellWidth): DataMemory {
-  checkAddress(address, width)
+  checkAddress(address, width, 1, memory.length)
   const value = parseValue(text, width)
   if (width === 32) return writeWord(memory, address, value)
+  if (memory instanceof PagedMemory) return memory.withBytes(address, [value])
   const bytes = [...memory]; bytes[address] = value
   return createMemory(bytes)
 }
 
 /** Replace the entire image: unspecified bytes are zero, cell addresses map to byte offsets. */
-export function memoryImage(image: HexImage, address = 0): DataMemory {
-  checkAddress(address, image.width, image.values.length)
-  const bytes = Array<number>(MEMORY_BYTES).fill(0)
+export function memoryImage(image: HexImage, address = 0, capacity = MEMORY_BYTES): DataMemory {
+  checkAddress(address, image.width, image.values.length, capacity)
+  const bytes = new Uint8Array(capacity)
   image.values.forEach((value, i) => {
     const checked = parseValue(String(value), image.width)
     for (let lane = 0; lane < image.width / 8; lane++) bytes[address + i * image.width / 8 + lane] = checked >>> (lane * 8) & 255

@@ -43,11 +43,12 @@ describe('trace transport is separate from architectural commit', () => {
   })
   it('guards continuous execution independently of program length', () => {
     useLabStore.setState({ program: Array(1002).fill(0x00100093) })
-    store().run()
+    store().setExecutionLimit(1000); store().run()
     for (let i = 0; i < 5010; i++) store().tick()
     expect(store().cpu.retired).toBe(1000)
     expect(store().running).toBe(false)
-    expect(store().cpu.reason).toContain('最大执行步数')
+    expect(store().executionNotice).toContain('本次执行预算 1000')
+    expect(store().cpu.status).toBe('ready')
   })
   it('accepts only valid initial register edits and program edits reset state', () => {
     store().setInitialRegister(1, -1)

@@ -28,5 +28,7 @@ jobs:
             .local/sprint021-native-zoom.json
             .local/sprint03-*.png
             .local/sprint03-*.json
+            .local/sprint031-*.png
+            .local/sprint031-*.json
           include-hidden-files: true
           retention-days: 7

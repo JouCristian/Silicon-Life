@@ -16,7 +16,7 @@ function fault(state: CpuState, reason: string, source: 'rtl' | 'host', cause?: 
 }
 
 /** One call commits exactly one architectural clock edge. No UI or timing dependencies. */
-export function step(state: CpuState, program: readonly number[]): { state: CpuState; trace?: ExecutionTrace } {
+export function step(state: CpuState, program: ArrayLike<number>): { state: CpuState; trace?: ExecutionTrace } {
   if (state.status !== 'ready') return { state }
   if (state.pc % 4 !== 0) return fault(state, '指令地址未按 4 字节对齐', 'rtl', 0)
   const word = program[state.pc / 4]
@@ -76,11 +76,11 @@ export function step(state: CpuState, program: readonly number[]): { state: CpuS
     })
     return { state: after, trace }
   } catch (error) {
-    return fault(state, error instanceof Error ? error.message : '译码失败', 'host')
+    return fault(state, `PC 0x${state.pc.toString(16).padStart(8, '0')} · ${error instanceof Error ? error.message : '译码失败'}`, 'host')
   }
 }
 
-export function run(state: CpuState, program: readonly number[], maxSteps = MAX_STEPS) {
+export function run(state: CpuState, program: ArrayLike<number>, maxSteps = MAX_STEPS) {
   if (!Number.isInteger(maxSteps) || maxSteps < 1 || maxSteps > MAX_STEPS) throw new Error(`步数限制必须为 1–${MAX_STEPS}`)
   const traces: ExecutionTrace[] = []
   let current = state

@@ -1,15 +1,16 @@
-export const MAX_HEX_BYTES = 64 * 1024
+import type { ProgramWords } from '../core/rom'
+export const MAX_HEX_BYTES = 4 * 1024 * 1024
 export type CellWidth = 8 | 32
 export interface HexImage {
   readonly format: 'logisim-v2-raw' | 'plain'
   readonly width: CellWidth
-  readonly values: readonly number[]
+  readonly values: ProgramWords
 }
 
 /** Local-file format policy, independent of DOM and CPU execution. */
-export function parseHex(text: string, width: CellWidth = 32, maxValues = 256): HexImage {
-  if (new TextEncoder().encode(text).length > MAX_HEX_BYTES) throw new Error('HEX 文件不得超过 64 KiB')
-  if (width !== 8 && width !== 32 || !Number.isInteger(maxValues) || maxValues < 1 || maxValues > 1024) throw new Error('无效的 HEX 容量或数据宽度')
+export function parseHex(text: string, width: CellWidth = 32, maxValues = 65536): HexImage {
+  if (new TextEncoder().encode(text).length > MAX_HEX_BYTES) throw new Error('HEX 文件不得超过 4 MiB')
+  if (width !== 8 && width !== 32 || !Number.isInteger(maxValues) || maxValues < 1 || maxValues > 262144) throw new Error('无效的 HEX 容量或数据宽度')
   const clean = text.replace(/^\uFEFF/, '').replace(/#[^\r\n]*/g, '').trim()
   if (/^v3\./i.test(clean)) throw new Error('不支持 Logisim v3.0，请导出 v2.0 raw')
   if (clean.startsWith(':')) throw new Error('不支持 Intel HEX')
@@ -33,7 +34,7 @@ export function parseHex(text: string, width: CellWidth = 32, maxValues = 256): 
   return Object.freeze({ format: logisim ? 'logisim-v2-raw' : 'plain', width, values: Object.freeze(values) })
 }
 
-export function exportHex(values: readonly number[], width: CellWidth): string {
+export function exportHex(values: ProgramWords, width: CellWidth): string {
   if (width !== 8 && width !== 32) throw new Error('无效数据宽度')
   const limit = width === 8 ? 255 : 0xffffffff
   if (values.some(n => !Number.isInteger(n) || n < 0 || n > limit)) throw new Error('导出数据超出宽度')

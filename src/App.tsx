@@ -1,7 +1,9 @@
 import { lazy, Suspense, useEffect, useRef } from 'react'
 import { AnimatePresence } from 'motion/react'
 import { useMotionPreference } from './motion/useMotionPreference'
-import { assembly, decode, hex } from './core/isa'
+import { hex } from './core/isa'
+import { instructionRow } from './io/program'
+import { EXECUTION_LIMITS } from './stores/useLabStore'
 import { ProgramPanel } from './components/ProgramPanel'
 import { RegisterPanel } from './components/RegisterPanel'
 import { MemoryPanel } from './components/MemoryPanel'
@@ -18,7 +20,7 @@ const GradientASCII = lazy(() => import('./components/react-bits/GradientASCII')
 const MODES = [{ value: 'demo' as const, label: '演示模式' }, { value: 'pro' as const, label: '专业模式' }]
 
 export default function App() {
-  const { cpu, program, scene, mode, setMode, enter, home, step, run, pause, reset, resetView, running, playing, trace, phase } = useLabView()
+  const { cpu, program, scene, mode, setMode, enter, home, step, run, pause, reset, resetView, running, playing, trace, phase, fastRunning, runFast, executionLimit, setExecutionLimit, executionNotice } = useLabView()
   const reduced = useMotionPreference()
   const anchorRef = useRef<HTMLDivElement>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
@@ -33,7 +35,7 @@ export default function App() {
   }, [scene])
   const open = scene === 'workbench'
   const current = program[cpu.pc / 4]
-  const status = playing ? '正在讲解' : running ? '运行中' : cpu.status === 'halted' ? '程序完成' : cpu.status === 'fault' ? '执行停止' : '就绪'
+  const status = playing ? '正在讲解' : fastRunning ? '快速执行中' : running ? '运行中' : cpu.status === 'halted' ? '程序完成' : cpu.status === 'fault' ? '执行停止' : '就绪'
   return <div className={`app ${open ? 'is-workbench' : 'is-home'}`}>
     {!open && <Suspense fallback={null}><GradientASCII /></Suspense>}
     <div className="persistent-scene"><Suspense fallback={<div className="scene-fallback">正在加载三维引擎…</div>}><CpuScene anchorRef={anchorRef} /></Suspense></div>
@@ -55,13 +57,15 @@ export default function App() {
           <div ref={anchorRef} className="scene-viewport" data-testid="scene-anchor" aria-label={open ? 'CPU 三维交互区域' : '芯片三维交互区域'} />
           <div className="scene-bottom"><span>拖拽旋转 <span className="separator">·</span> 滚轮缩放 <span className="separator">·</span> 右键平移</span>{open && <span className="scene-legend" aria-label="信号语义图例"><i />数据<i className="control" />控制<i className="writeback" />写回</span>}</div>
           </>} details={<><AnimatePresence>{open && <ScenePresence key="controls" className="execution-presence" delay={MOTION.ui.stagger * 3}>
-            <div className="execution-bar"><div className="pc-state"><span>PC</span><code data-testid="pc">{hex(cpu.pc)}</code><small>已提交 {cpu.retired} 条</small></div><div className="execution-controls"><button className="button icon-button" aria-label="复位 CPU" title="复位 CPU" onClick={reset}>↺</button><button className="button subtle" onClick={step} disabled={playing || running || cpu.status !== 'ready'}>单步指令</button>{playing || running ? <button className="button primary" aria-label="暂停" onClick={pause}><span aria-hidden="true">Ⅱ</span> 暂停</button> : <button className="button primary" aria-label="运行" onClick={run} disabled={cpu.status !== 'ready' && !(trace?.after === cpu && phase !== 'writeback')}><span aria-hidden="true">▷</span> 运行</button>}</div></div>
-            <div className="execution-status" role="status"><span className={`status-dot ${cpu.status === 'fault' ? 'fault' : ''}`} />{status}<span className="status-detail">{cpu.reason ?? (current !== undefined ? `下一条：${assembly(decode(current))}` : '')}</span></div>
+            <div className="execution-bar"><div className="pc-state"><span>PC</span><code data-testid="pc">{hex(cpu.pc)}</code><small>已提交 {cpu.retired} 条</small></div><div className="execution-controls"><button className="button icon-button" aria-label="复位 CPU" title="复位 CPU" onClick={reset}>↺</button><button className="button subtle" onClick={step} disabled={playing || running || fastRunning || cpu.status !== 'ready'}>单步指令</button>{playing || running || fastRunning ? <button className="button primary" aria-label="暂停" onClick={pause}><span aria-hidden="true">Ⅱ</span> 暂停</button> : <button className="button primary" aria-label="运行" onClick={run} disabled={cpu.status !== 'ready' && !(trace?.after === cpu && phase !== 'writeback')}><span aria-hidden="true">▷</span> 运行</button>}</div></div>
+            <div className="execution-options"><button className="button subtle" onClick={runFast} disabled={playing || running || fastRunning || cpu.status !== 'ready'}>快速运行</button><label>本次步数预算<select aria-label="执行步数预算" value={executionLimit} onChange={e => setExecutionLimit(Number(e.target.value))}>{EXECUTION_LIMITS.map(limit => <option key={limit} value={limit}>{limit.toLocaleString()} 步</option>)}</select></label></div>
+            {executionNotice && <p className="field-help" role="status">{executionNotice}</p>}
+            <div className="execution-status" role="status"><span className={`status-dot ${cpu.status === 'fault' ? 'fault' : ''}`} />{status}<span className="status-detail">{cpu.reason ?? (current !== undefined ? `下一条：${instructionRow(program, cpu.pc / 4).assembly}` : '')}</span></div>
           </ScenePresence>}</AnimatePresence>
           <AnimatePresence>{open && <ScenePresence key="trace" className="trace-presence" delay={MOTION.ui.stagger * 4}><TracePanel /></ScenePresence>}</AnimatePresence></>}
         state={<AnimatePresence>{open && <ScenePresence key="state" id="state-region" label="寄存器与数据内存" as="aside" className="state-panel panel-scroll" delay={MOTION.ui.stagger * 3}><RegisterPanel /><MemoryPanel /></ScenePresence>}</AnimatePresence>} />
     </main>
 
-    <footer className="app-footer"><span>SWUST-OC 一生一芯学习小组</span><span>{open ? '真实执行 · 快照驱动可视化' : 'Cinematic Reveal + Teaching Plane'}</span><span>Sprint 03 <span className="separator">/</span> 2026</span></footer>
+    <footer className="app-footer"><span>SWUST-OC 一生一芯学习小组</span><span>{open ? '真实执行 · 快照驱动可视化' : 'Cinematic Reveal + Teaching Plane'}</span><span>Sprint 03.1 <span className="separator">/</span> 2026</span></footer>
   </div>
 }

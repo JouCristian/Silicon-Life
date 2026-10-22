@@ -23,8 +23,8 @@ describe('custom programs and address mapping', () => {
   })
   it('inserts, deletes and reorders immutably; selection never points outside program', () => {
     const original = [add(1), add(2)]
-    expect(moveWord(insertWord(original, 1, add(3)), 2, 0)).toEqual([add(2), add(1), add(3)])
-    expect(removeWord(original, 1)).toEqual([add(1)])
+    expect(Array.from(moveWord(insertWord(original, 1, add(3)), 2, 0))).toEqual([add(2), add(1), add(3)])
+    expect(Array.from(removeWord(original, 1))).toEqual([add(1)])
     expect(original).toEqual([add(1), add(2)])
     store().createCustomProgram(original); store().insertInstruction(1); store().moveInstruction(1, 2)
     expect(store().selectedInstruction).toBe(2)
@@ -49,16 +49,16 @@ describe('custom programs and address mapping', () => {
     store().updateInstruction(0, { op: 'ADDI', rd: 1, rs1: 0, imm: 9 })
     const custom = store().program
     store().loadProgram('branch'); store().loadProgram('custom')
-    expect(store().program).toEqual(custom)
+    expect(Array.from(store().program)).toEqual(Array.from(custom))
     store().restoreCustomProgram(); finish()
     expect(store().cpu.registers[3]).toBe(12)
     expect(JSON.stringify(PROGRAMS)).toBe(originals)
   })
   it('rejects bad/oversized imports atomically, including append capacity', () => {
     const before = store()
-    for (const words of [[0xffffffff], [], Array(257).fill(add(1))]) expect(() => store().importProgram(words)).toThrow()
+    for (const words of [[0xffffffff], [], Array(65537).fill(add(1))]) expect(() => store().importProgram(words, false, true)).toThrow()
     expect(store()).toBe(before)
-    store().createCustomProgram(Array(256).fill(add(1)))
+    store().createCustomProgram(Array(65536).fill(add(1)))
     const full = store()
     expect(() => store().importProgram([add(2)], true)).toThrow()
     expect(store()).toBe(full)
@@ -96,7 +96,9 @@ describe('initial configuration survives execution and reset', () => {
     expect(readWord(store().cpu.memory, 64)).toBe(42)
     expect(store().cpu.registers[2]).toBe(99)
     expect(store().cpu.registers[3]).toBe(0)
-    store().loadProgram('branch'); store().insertInstruction(0)
+    const projectId = store().activeProjectId
+    store().loadProgram('branch'); expect(readWord(store().cpu.memory, 64)).toBe(0)
+    store().loadProgram(projectId); store().insertInstruction(0)
     expect(readWord(store().cpu.memory, 64)).toBe(42)
     expect(store().cpu.registers[2]).toBe(99)
   })

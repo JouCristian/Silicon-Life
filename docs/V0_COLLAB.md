@@ -24,6 +24,7 @@ GitHub 是唯一代码事实来源，远程仓库为 https://github.com/JouCrist
 - `src/tests/` 中测试基准；不能删除失败测试或变更机器码期望。
 - `src/stores/useLabStore.ts` 提交、停止、保护与播放边界。
 - `src/io/` 的 HEX 解析、展开限制、ROM 校验、RAM 初始镜像与小端 / 对齐策略。
+- `src/projects/` 的项目 schema、IndexedDB、保存队列和多标签页 revision 事务；Core 的 InstructionROM / PagedMemory 存储表示。
 - RTL 原件、机器码数据基准、CI 必需检查、框架和部署架构。
 - 不得为界面填充伪造 CPU 结果、随机信号或独立动画写回逻辑。
 
@@ -35,6 +36,7 @@ GitHub 是唯一代码事实来源，远程仓库为 https://github.com/JouCrist
 - `trace.phases[phase]` 提供参与模块，`trace.signals` 提供数值。控制编码与 RTL 原名必须保持。
 - 扩展接口变更先由主工程师更新类型、语义、映射和测试，再交给视觉协作者使用。
 - 自定义程序通过 createCustomProgram / insertInstruction / deleteInstruction / moveInstruction / importProgram 操作；初始 RAM 通过 setInitialMemory 操作。组件不得直接写 customProgram / initialMemory / initialRegisters；修改程序重置 Trace，但不能清除初始配置。数据类型详见 src/io/，导入流程详见 docs/HEX_FORMAT.md。
+- Sprint 03.1 项目操作使用 createProject / renameProject / deleteProject / importProject / loadProgram，快跑使用 runFast / pause。配置与保存状态仅通过 Store read model / action 获取，不由组件直接操作 IndexedDB 或变更 readonly buffer。删除 / 清空 / 缩容的确认属于必要交互，不可为视觉简化移除。
 
 ## 部署准备
 

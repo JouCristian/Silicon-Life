@@ -18,8 +18,8 @@ describe('bounded HEX file policy', () => {
     expect(() => parseHex('100', 8)).toThrow('8 位')
     expect(() => parseHex('100000000')).toThrow('32 位')
     expect(() => parseHex('v2.0 raw\n999999999999999999*00')).toThrow()
-    expect(() => parseHex('v2.0 raw\n257*00500093')).toThrow('256')
-    expect(() => parseHex(' '.repeat(MAX_HEX_BYTES + 1))).toThrow('64 KiB')
+    expect(() => parseHex('v2.0 raw\n257*00500093', 32, 256)).toThrow('256')
+    expect(() => parseHex(' '.repeat(MAX_HEX_BYTES + 1))).toThrow('4 MiB')
     expect(parseHex('v2.0 raw\n256*00500093').values).toHaveLength(256)
   })
   it('reports exact unsupported ROM index, word and reason', () => {

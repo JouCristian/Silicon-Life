@@ -1,10 +1,10 @@
 # 芯生 / Silicon Life
 
-DeepSeek V2 芯片模型已在本地集成，保留单 CPU Canvas、连续转场与真实教学数据通路。适配、截图、测试及性能边界见 [CHIP_V2_INTEGRATION](docs/CHIP_V2_INTEGRATION.md)。原型目录为冻结参考，其 UI、DemoModules 和相机控制不进入正式场景。
+DeepSeek V3 芯片视觉已在本分支完成：完整封装、电影化解构与可读的教学电路板共用既有单 CPU Canvas、连续转场和真实教学数据通路。实现、截图与验证见 [CHIP_V3_VISUAL](docs/CHIP_V3_VISUAL.md)；V2 集成记录见 [CHIP_V2_INTEGRATION](docs/CHIP_V2_INTEGRATION.md)。原型目录为冻结参考，其 UI、DemoModules 和相机控制不进入正式场景。
 
 基于真实 RV32I 单周期架构的三维交互教学网站。Sprint 03.1 支持 **ADDI、ADD、LW、SW、BEQ** 的最多 10 个本地项目、65536 条 ROM、1/64/256 KiB RAM、IndexedDB 自动保存和 JSON / HEX 备份、RTL 信号快照和连续可逆的芯片展开。
 
-仓库：[JouCristian/Silicon-Life](https://github.com/JouCristian/Silicon-Life)，生产环境：[silicon-life.vercel.app](https://silicon-life.vercel.app/)。PR #1、#2 已合并；Sprint 03 从 main `1e3a81e` 建立分支；本轮在 `feat/sprint-03-program-memory` 的本地提交 `3aa05e2` 上继续 Sprint 03.1，只进行本地开发和验证，未推送、未创建 PR、未触发生产部署。未连接 v0。
+仓库：[JouCristian/Silicon-Life](https://github.com/JouCristian/Silicon-Life)，生产环境：[silicon-life.vercel.app](https://silicon-life.vercel.app/)。PR #1、#2、#3 已合并；`feat/chip-v3-visual` 从 `feat/integrate-chip-v2` 的 `aae1c46` 建立，仅进行本地视觉开发和验证，未推送、未创建 PR、未触发生产部署。未连接 v0。
 
 ## 本地运行
 
@@ -71,7 +71,7 @@ addi x3, x0, 42
 
 [arithmetic.hex](examples/arithmetic.hex) 导入 ROM 后得到 x3=12。导入 [memory-init.hex](examples/memory-init.hex) 时，RAM 选择 **32-bit、起始字节地址 0**，再创建一条 `lw x3, 64(x0)`（`04002183`），得到 x3=42。详细格式见 [HEX_FORMAT](docs/HEX_FORMAT.md)，存储和容量设计见 [ARCHITECTURE](docs/ARCHITECTURE.md)，性能实测见 [VALIDATION](docs/VALIDATION.md)。
 
-ROM / RAM 共用自定义文件按钮，文件名单独省略显示并可悬停查看完整名称，支持重新选择同名文件。所有解析只在本机进行，无后端。React Bits 保持 Sprint 03 的集成，本轮不新增首页视觉效果；[来源与许可证](docs/THIRD_PARTY.md)。MMIO 仍仅架构规划。
+ROM / RAM 共用自定义文件按钮，文件名单独省略显示并可悬停查看完整名称，支持重新选择同名文件。所有解析只在本机进行，无后端。React Bits 保持 Sprint 03 的集成；V3 只升级 3D 场景视觉，不改动其语义与 Canvas 生命周期。[来源与许可证](docs/THIRD_PARTY.md)。MMIO 仍仅架构规划。
 
 ## 验证与构建
 

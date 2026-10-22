@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react'
 import { assembly, binary, decode, encode, hex, type Instruction } from '../core/isa'
 import { useLabView } from '../stores/useLabStore'
+import { GlideSelect } from './GlideSelect'
 
 function RegisterSelect({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) {
-  return <label>{label}<select aria-label={label} value={value} onChange={event => onChange(Number(event.target.value))}>
-    {Array.from({ length: 32 }, (_, i) => <option key={i} value={i}>x{i}</option>)}
-  </select></label>
+  return <label>{label}<GlideSelect
+    ariaLabel={label}
+    value={String(value)}
+    onChange={next => onChange(Number(next))}
+    options={Array.from({ length: 32 }, (_, i) => ({ value: String(i), label: `x${i}` }))}
+    size="sm"
+    menuWidth={120}
+  /></label>
 }
 function EditableInstruction({ index, initial }: { index: number; initial: Instruction }) {
   const { updateInstruction } = useLabView()
@@ -17,11 +23,18 @@ function EditableInstruction({ index, initial }: { index: number; initial: Instr
   const change = (next: Instruction) => { setSaved(false); setDraft(next) }
   return <section className="editor">
     <div className="section-title"><h3>指令编码器</h3><span>第 {index + 1} 条</span></div>
-    <div className="editor-fields"><label>指令<select aria-label="指令" value={draft.op} onChange={e => {
-      const op = e.target.value as Instruction['op'], rd = 'rd' in draft ? draft.rd : 3, rs1 = draft.rs1
-      change(op === 'ADD' ? { op, rd, rs1, rs2: 2 } : op === 'BEQ' || op === 'SW' ? { op, rs1, rs2: 2, imm: 0 } : { op, rd, rs1, imm: 0 })
-      setImmText('0')
-    }}>{['ADDI', 'ADD', 'LW', 'SW', 'BEQ'].map(op => <option key={op}>{op}</option>)}</select></label>
+    <div className="editor-fields"><label>指令<GlideSelect
+      ariaLabel="指令"
+      value={draft.op}
+      onChange={value => {
+        const op = value as Instruction['op'], rd = 'rd' in draft ? draft.rd : 3, rs1 = draft.rs1
+        change(op === 'ADD' ? { op, rd, rs1, rs2: 2 } : op === 'BEQ' || op === 'SW' ? { op, rs1, rs2: 2, imm: 0 } : { op, rd, rs1, imm: 0 })
+        setImmText('0')
+      }}
+      options={['ADDI', 'ADD', 'LW', 'SW', 'BEQ'].map(op => ({ value: op, label: op }))}
+      size="sm"
+      menuWidth={120}
+    /></label>
       {'rd' in draft && <RegisterSelect label="rd" value={draft.rd} onChange={rd => change({ ...draft, rd })} />}
       <RegisterSelect label="rs1" value={draft.rs1} onChange={rs1 => change({ ...draft, rs1 })} />
       {'rs2' in draft && <RegisterSelect label="rs2" value={draft.rs2} onChange={rs2 => change({ ...draft, rs2 })} />}

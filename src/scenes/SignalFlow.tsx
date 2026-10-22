@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Line } from '@react-three/drei'
-import { BufferGeometry, Line as ThreeLine, LineBasicMaterial, Mesh, Vector3 } from 'three'
+import { AdditiveBlending, BufferGeometry, Line as ThreeLine, LineBasicMaterial, Mesh, Vector3 } from 'three'
 import { MOTION, smoothstep } from '../motion/design'
 import { presentationClock, type ScheduledTransfer, type Timeline } from '../motion/timeline'
 import type { WireDef } from './topology'
@@ -24,19 +24,24 @@ export function SignalFlow({ wire, transfer, timeline, epoch, inspection, reduce
   wire: WireDef; transfer?: ScheduledTransfer; timeline: Timeline; epoch: number; inspection: boolean; reduced: boolean
 }) {
   const head = useRef<Mesh>(null)
+  const halo = useRef<Mesh>(null)
   const samples = useMemo(() => sampledPath(wire), [wire])
+  const cursorPosition = useMemo(() => new Vector3(), [])
   const color = MOTION.color[transfer?.kind ?? 'data']
   const beams = useMemo(() => Array.from({ length: 4 }, () => {
     const geometry = new BufferGeometry().setFromPoints(samples)
     geometry.setDrawRange(0, 0)
-    return new ThreeLine(geometry, new LineBasicMaterial({ color, transparent: true, opacity: .9, depthTest: false }))
+    return new ThreeLine(geometry, new LineBasicMaterial({
+      color, transparent: true, opacity: .9, depthTest: false, blending: AdditiveBlending,
+    }))
   }), [samples, color])
   useEffect(() => () => { for (const beam of beams) { beam.geometry.dispose(); beam.material.dispose() } }, [beams])
   useFrame(() => {
-    if (!head.current) return
+    if (!head.current || !halo.current) return
     const time = presentationClock.read(epoch, inspection, timeline.duration)
     const on = !!transfer && time >= transfer.start
     head.current.visible = on
+    halo.current.visible = on && !reduced
     beams.forEach(beam => { beam.visible = on && !reduced })
     if (!transfer || !on) return
     const progress = Math.max(0, Math.min(1, (time - transfer.start) / (transfer.end - transfer.start)))
@@ -49,14 +54,20 @@ export function SignalFlow({ wire, transfer, timeline, epoch, inspection, reduce
       beam.geometry.setDrawRange(start, Math.max(0, end - start + 1))
       beam.material.opacity = fade * ((part + 1) / 4) ** 2
     })
-    head.current.position.lerpVectors(samples[index], samples[Math.min(index + 1, samples.length - 1)], cursor - index)
-    head.current.scale.setScalar(reduced ? .8 : 1 + .25 * Math.exp(-Math.max(0, time - transfer.start) * 16))
+    cursorPosition.lerpVectors(samples[index], samples[Math.min(index + 1, samples.length - 1)], cursor - index)
+    head.current.position.copy(cursorPosition)
+    halo.current.position.copy(cursorPosition)
+    head.current.scale.setScalar(reduced ? .82 : 1 + .3 * Math.exp(-Math.max(0, time - transfer.start) * 16))
+    halo.current.scale.setScalar((1.8 + .55 * Math.exp(-Math.max(0, time - transfer.start) * 9)) * (reduced ? .65 : 1))
     const material = head.current.material as import('three').MeshBasicMaterial
     material.opacity = fade
+    const haloMaterial = halo.current.material as import('three').MeshBasicMaterial
+    haloMaterial.opacity = fade * .22
   })
   return <>
-    <Line points={wire.points.map(p => [p[0], p[1], .1] as [number, number, number])} color={MOTION.color.inactive} lineWidth={1} dashed={wire.control} dashSize={.12} gapSize={.08} />
+    <Line points={wire.points.map(p => [p[0], p[1], .1] as [number, number, number])} color="#8ba3b3" lineWidth={1.45} transparent opacity={.82} dashed={wire.control} dashSize={.12} gapSize={.08} />
     {beams.map((beam, index) => <primitive key={index} object={beam} />)}
-    <mesh ref={head} visible={false}><sphereGeometry args={[.055, 10, 8]} /><meshBasicMaterial color={color} transparent /></mesh>
+    <mesh ref={halo} visible={false} renderOrder={3}><sphereGeometry args={[.16, 12, 8]} /><meshBasicMaterial color={color} transparent opacity={.22} depthTest={false} depthWrite={false} blending={AdditiveBlending} /></mesh>
+    <mesh ref={head} visible={false} renderOrder={4}><sphereGeometry args={[.09, 12, 8]} /><meshBasicMaterial color={color} transparent depthTest={false} depthWrite={false} blending={AdditiveBlending} /></mesh>
   </>
 }

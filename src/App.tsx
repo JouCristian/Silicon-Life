@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef } from 'react'
-import { AnimatePresence } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
 import { useMotionPreference } from './motion/useMotionPreference'
 import { hex } from './core/isa'
 import { instructionRow } from './io/program'
@@ -14,9 +14,12 @@ import { usePlaybackDriver } from './motion/usePlaybackDriver'
 import { MOTION } from './motion/design'
 import { WorkbenchLayout } from './components/WorkbenchLayout'
 import { JellyRadio } from './components/react-bits/JellyRadio'
+import { GlideSelect } from './components/GlideSelect'
+import { PanelEdgeBlur } from './components/PanelEdgeBlur'
 
 const CpuScene = lazy(() => import('./scenes/CpuScene'))
 const GradientASCII = lazy(() => import('./components/react-bits/GradientASCII'))
+const GradientWaves = lazy(() => import('./components/react-bits/GradientWaves'))
 const MODES = [{ value: 'demo' as const, label: '演示模式' }, { value: 'pro' as const, label: '专业模式' }]
 
 export default function App() {
@@ -37,7 +40,43 @@ export default function App() {
   const current = program[cpu.pc / 4]
   const status = playing ? '正在讲解' : fastRunning ? '快速执行中' : running ? '运行中' : cpu.status === 'halted' ? '程序完成' : cpu.status === 'fault' ? '执行停止' : '就绪'
   return <div className={`app ${open ? 'is-workbench' : 'is-home'}`}>
-    {!open && <Suspense fallback={null}><GradientASCII /></Suspense>}
+    <AnimatePresence>
+      {!open && <motion.div
+        key="home-atmosphere"
+        className="home-atmosphere"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 1.35, ease: [.22, 1, .36, 1] }}
+      >
+        <Suspense fallback={null}><GradientASCII /></Suspense>
+        <Suspense fallback={null}><GradientWaves
+          className="home-waves"
+          horizonColor="#234563"
+          waveColor="#477a9b"
+          crestColor="#6f9fba"
+          speed={.2}
+          amplitude={1.4}
+          waveScale={.7}
+          waveRatio={.9}
+          swell={20}
+          turbulence={12}
+          tilt={72}
+          zoom={1}
+          height={3.8}
+          fogDepth={28}
+          relief={.8}
+          lightAngle={115}
+          sheen={0}
+          brightness={.85}
+          opacity={.88}
+          grain={.04}
+          quality="medium"
+          intro
+          dpr={1.5}
+        /></Suspense>
+      </motion.div>}
+    </AnimatePresence>
     <div className="persistent-scene"><Suspense fallback={<div className="scene-fallback">正在加载三维引擎…</div>}><CpuScene anchorRef={anchorRef} /></Suspense></div>
     <header className="app-header">
       <button className="brand" onClick={home} aria-label="芯生首页"><span className="brand-mark">芯</span><span>芯生<span className="brand-en">SILICON LIFE</span></span></button>
@@ -51,19 +90,25 @@ export default function App() {
       <AnimatePresence>{open && <ScenePresence key="heading" className="workspace-heading" delay={MOTION.ui.stagger}><div><div className="breadcrumb">芯生 / 实验室 / <span>单周期 CPU</span></div><h1 ref={headingRef} tabIndex={-1}>让指令，走一遍。</h1></div><JellyRadio items={MODES} value={mode} onChange={setMode} ariaLabel="工作台模式" /></ScenePresence>}</AnimatePresence>
 
       <WorkbenchLayout open={open} program={<AnimatePresence>{open && <ScenePresence key="program" id="program-region" label="程序与指令编辑" as="aside" className="program-panel panel-scroll" delay={MOTION.ui.stagger * 2}>
-          <ProgramPanel />
+          <PanelEdgeBlur position="top" /><ProgramPanel /><PanelEdgeBlur position="bottom" />
         </ScenePresence>}</AnimatePresence>} scene={<>
           <AnimatePresence>{open && <ScenePresence key="toolbar" className="scene-toolbar" delay={MOTION.ui.stagger * 3}><span><span className="tiny-dot" />Teaching plane <small>2.5D</small></span><button className="text-button" onClick={resetView}>↺ 恢复视角</button></ScenePresence>}</AnimatePresence>
           <div ref={anchorRef} className="scene-viewport" data-testid="scene-anchor" aria-label={open ? 'CPU 三维交互区域' : '芯片三维交互区域'} />
           <div className="scene-bottom"><span>拖拽旋转 <span className="separator">·</span> 滚轮缩放 <span className="separator">·</span> 右键平移</span>{open && <span className="scene-legend" aria-label="信号语义图例"><i />数据<i className="control" />控制<i className="writeback" />写回</span>}</div>
-          </>} details={<><AnimatePresence>{open && <ScenePresence key="controls" className="execution-presence" delay={MOTION.ui.stagger * 3}>
+          </>} details={<><PanelEdgeBlur position="top" /><AnimatePresence>{open && <ScenePresence key="controls" className="execution-presence" delay={MOTION.ui.stagger * 3}>
             <div className="execution-bar"><div className="pc-state"><span>PC</span><code data-testid="pc">{hex(cpu.pc)}</code><small>已提交 {cpu.retired} 条</small></div><div className="execution-controls"><button className="button icon-button" aria-label="复位 CPU" title="复位 CPU" onClick={reset}>↺</button><button className="button subtle" onClick={step} disabled={playing || running || fastRunning || cpu.status !== 'ready'}>单步指令</button>{playing || running || fastRunning ? <button className="button primary" aria-label="暂停" onClick={pause}><span aria-hidden="true">Ⅱ</span> 暂停</button> : <button className="button primary" aria-label="运行" onClick={run} disabled={cpu.status !== 'ready' && !(trace?.after === cpu && phase !== 'writeback')}><span aria-hidden="true">▷</span> 运行</button>}</div></div>
-            <div className="execution-options"><button className="button subtle" onClick={runFast} disabled={playing || running || fastRunning || cpu.status !== 'ready'}>快速运行</button><label>本次步数预算<select aria-label="执行步数预算" value={executionLimit} onChange={e => setExecutionLimit(Number(e.target.value))}>{EXECUTION_LIMITS.map(limit => <option key={limit} value={limit}>{limit.toLocaleString()} 步</option>)}</select></label></div>
+            <div className="execution-options"><button className="button subtle" onClick={runFast} disabled={playing || running || fastRunning || cpu.status !== 'ready'}>快速运行</button><label>本次步数预算<GlideSelect
+              ariaLabel="执行步数预算"
+              value={String(executionLimit)}
+              onChange={value => setExecutionLimit(Number(value))}
+              options={EXECUTION_LIMITS.map(limit => ({ value: String(limit), label: `${limit.toLocaleString()} 步` }))}
+              menuWidth={180}
+            /></label></div>
             {executionNotice && <p className="field-help" role="status">{executionNotice}</p>}
             <div className="execution-status" role="status"><span className={`status-dot ${cpu.status === 'fault' ? 'fault' : ''}`} />{status}<span className="status-detail">{cpu.reason ?? (current !== undefined ? `下一条：${instructionRow(program, cpu.pc / 4).assembly}` : '')}</span></div>
           </ScenePresence>}</AnimatePresence>
           <AnimatePresence>{open && <ScenePresence key="trace" className="trace-presence" delay={MOTION.ui.stagger * 4}><TracePanel /></ScenePresence>}</AnimatePresence></>}
-        state={<AnimatePresence>{open && <ScenePresence key="state" id="state-region" label="寄存器与数据内存" as="aside" className="state-panel panel-scroll" delay={MOTION.ui.stagger * 3}><RegisterPanel /><MemoryPanel /></ScenePresence>}</AnimatePresence>} />
+        state={<AnimatePresence>{open && <ScenePresence key="state" id="state-region" label="寄存器与数据内存" as="aside" className="state-panel panel-scroll" delay={MOTION.ui.stagger * 3}><PanelEdgeBlur position="top" /><RegisterPanel /><MemoryPanel /><PanelEdgeBlur position="bottom" /></ScenePresence>}</AnimatePresence>} />
     </main>
 
     <footer className="app-footer"><span>SWUST-OC 一生一芯学习小组</span><span>{open ? '真实执行 · 快照驱动可视化' : 'Cinematic Reveal + Teaching Plane'}</span><span>Sprint 03.1 <span className="separator">/</span> 2026</span></footer>

@@ -6,6 +6,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import {
   createBrandTexture,
   createDeckCircuitTexture,
+  createInlayCircuitTexture,
   createSerialTexture,
   createStripGlowTexture,
 } from './textures.js';
@@ -64,26 +65,26 @@ export const CHIP_SPEC = Object.freeze({
 function createMaterials() {
   return {
     metal: new THREE.MeshPhysicalMaterial({
-      color: 0xbec6cd,
-      metalness: 0.86,
-      roughness: 0.34,
-      clearcoat: 0.3,
-      clearcoatRoughness: 0.28,
-      envMapIntensity: 1.55,
+      color: 0xaeb8c1,
+      metalness: 0.84,
+      roughness: 0.41,
+      clearcoat: 0.26,
+      clearcoatRoughness: 0.32,
+      envMapIntensity: 1.4,
     }),
     metalBright: new THREE.MeshPhysicalMaterial({
-      color: 0xe1e6ea,
-      metalness: 0.92,
-      roughness: 0.22,
-      clearcoat: 0.45,
-      clearcoatRoughness: 0.16,
-      envMapIntensity: 1.7,
+      color: 0xccd5db,
+      metalness: 0.88,
+      roughness: 0.29,
+      clearcoat: 0.36,
+      clearcoatRoughness: 0.22,
+      envMapIntensity: 1.55,
     }),
     metalDark: new THREE.MeshStandardMaterial({
-      color: 0x47505a,
-      metalness: 0.86,
-      roughness: 0.44,
-      envMapIntensity: 1.1,
+      color: 0x414b54,
+      metalness: 0.84,
+      roughness: 0.46,
+      envMapIntensity: 1.05,
     }),
     metalShadow: new THREE.MeshStandardMaterial({
       color: 0x1b2229,
@@ -322,6 +323,32 @@ function buildOuterFrame(materials) {
     }
   }
 
+  // V3 chassis detail: thin service seams and keyed side blocks. They sit on the
+  // existing collar envelope and become visible as the cover leaves the frame.
+  const chassisPlate = (width, height, depth, x, y, z, material) => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material);
+    mesh.position.set(x, y, z);
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    group.add(mesh);
+  };
+  for (const zSign of [-1, 1]) {
+    for (let i = 0; i < 7; i += 1) {
+      chassisPlate(0.34, 0.016, 0.008, -3.6 + i * 1.2, -0.194, zSign * 4.057, materials.darkSlot);
+    }
+    chassisPlate(3.8, 0.018, 0.035, 0, -0.194, zSign * 4.01, materials.metalDark);
+    chassisPlate(0.42, 0.025, 0.05, -4.82, -0.19, zSign * 4.01, materials.metalBright);
+    chassisPlate(0.42, 0.025, 0.05, 4.82, -0.19, zSign * 4.01, materials.metalBright);
+  }
+  for (const xSign of [-1, 1]) {
+    for (let i = 0; i < 5; i += 1) {
+      chassisPlate(0.008, 0.016, 0.34, xSign * 5.267, -0.194, -2.2 + i * 1.1, materials.darkSlot);
+    }
+    chassisPlate(0.035, 0.018, 2.8, xSign * 5.26, -0.194, 0, materials.metalDark);
+    chassisPlate(0.05, 0.025, 0.42, xSign * 5.26, -0.19, -3.05, materials.metalBright);
+    chassisPlate(0.05, 0.025, 0.42, xSign * 5.26, -0.19, 3.05, materials.metalBright);
+  }
+
   return group;
 }
 
@@ -342,7 +369,7 @@ function buildDecorativeDetails(materials, textures) {
     new THREE.MeshBasicMaterial({
       map: deckTexture,
       transparent: true,
-      opacity: 0.58,
+      opacity: 0.82,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       toneMapped: false,
@@ -521,6 +548,14 @@ function addDeckComponents(group, materials) {
     [1.0, -3.08, Math.PI / 2],
     [1.7, -3.08, Math.PI / 2],
     [3.65, 3.04, Math.PI / 2],
+    [-4.48, -3.02, 0],
+    [-4.48, 3.02, 0],
+    [4.47, 3.05, 0],
+    [4.47, -3.06, 0],
+    [-3.12, -3.08, Math.PI / 2],
+    [0.15, 3.06, Math.PI / 2],
+    [2.4, -3.08, Math.PI / 2],
+    [2.42, 3.06, Math.PI / 2],
   ];
 
   positions.forEach(([x, z, rotationY], index) => {
@@ -681,8 +716,19 @@ function buildTopCover(materials) {
         (startX + endX) / 2,
         0,
         (startZ + endZ) / 2,
-        materials.metal,
+        materials.metalDark,
         angle,
+      );
+      // A narrow polished wear face on each dark gusset keeps the diagonal from
+      // reading as a bright frame member from the hero angle.
+      addRoundedMesh(
+        group,
+        createRounded(length * 0.86, 0.012, 0.06, 0.008, 1),
+        materials.metalBright,
+        (startX + endX) / 2,
+        0.11,
+        (startZ + endZ) / 2,
+        { rotationY: angle, castShadow: false },
       );
     }
   }
@@ -773,7 +819,173 @@ function buildTopCover(materials) {
   pinOne.rotation.y = Math.PI / 4;
   group.add(pinOne);
 
+  addV3CoverMachining(group, materials, outerX, outerZ);
+
   return group;
+}
+
+/**
+ * V3 machining pass for the removable cover. Everything is placed inside the
+ * frozen V2 footprint and vertical datum, so the assembly golden and 180-pin
+ * contract stay untouched. The additional layers are intentionally built from
+ * the existing material set and are merged by the production batcher.
+ */
+function addV3CoverMachining(group, materials, outerX, outerZ) {
+  const plate = (width, height, depth, x, y, z, material, rotationY = 0) => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material);
+    mesh.position.set(x, y, z);
+    mesh.rotation.y = rotationY;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    group.add(mesh);
+    return mesh;
+  };
+
+  // A real lid needs a section, not just a top outline. A shallow dark skirt
+  // closes the vertical gap between cover and chassis while staying inside the
+  // frozen TopCover envelope. The bright cap and vent repeat keep it machined.
+  for (const zSign of [-1, 1]) {
+    plate(10.82, 0.18, 0.095, 0, -0.11, zSign * 4.035, materials.metalDark);
+    plate(10.86, 0.014, 0.105, 0, -0.018, zSign * 4.035, materials.metalBright);
+    for (let i = 0; i < 7; i += 1) {
+      plate(0.3, 0.058, 0.008, -3.45 + i * 1.15, -0.105, zSign * 4.086, materials.darkSlot);
+    }
+  }
+  for (const xSign of [-1, 1]) {
+    plate(0.095, 0.18, 8.0, xSign * 5.285, -0.11, 0, materials.metalDark);
+    plate(0.105, 0.014, 8.04, xSign * 5.285, -0.018, 0, materials.metalBright);
+    for (let i = 0; i < 5; i += 1) {
+      plate(0.008, 0.058, 0.3, xSign * 5.336, -0.105, -2.35 + i * 1.18, materials.darkSlot);
+    }
+  }
+
+  // Four recessed smoked-glass circuit bays. They close the outer voids with a
+  // layered material rather than a flat plate: graphite glass, a polished rail
+  // border, four service ribs and one printed copper layer share the cavity.
+  for (const zSign of [-1, 1]) {
+    addRoundedMesh(
+      group,
+      createRounded(8.16, 0.035, 0.5, 0.026, 2),
+      materials.ceramic,
+      0,
+      -0.092,
+      zSign * 3.22,
+      { castShadow: false },
+    );
+    plate(8.22, 0.018, 0.034, 0, -0.068, zSign * 3.47, materials.metalBright);
+    plate(8.22, 0.018, 0.034, 0, -0.068, zSign * 2.97, materials.metalBright);
+    plate(0.034, 0.018, 0.5, -4.1, -0.068, zSign * 3.22, materials.metalBright);
+    plate(0.034, 0.018, 0.5, 4.1, -0.068, zSign * 3.22, materials.metalBright);
+    for (let i = 0; i < 4; i += 1) {
+      plate(0.06, 0.022, 0.44, -3.05 + i * 2.03, -0.06, zSign * 3.22, i % 2 ? materials.metalDark : materials.metalBright);
+    }
+    plate(7.72, 0.005, 0.012, 0, -0.071, zSign * 3.25, materials.blueLightCore);
+    plate(0.44, 0.014, 0.055, -4.08, -0.069, zSign * 3.22, materials.metalBright);
+    plate(0.44, 0.014, 0.055, 4.08, -0.069, zSign * 3.22, materials.metalBright);
+  }
+
+  for (const xSign of [-1, 1]) {
+    addRoundedMesh(
+      group,
+      createRounded(0.5, 0.035, 4.64, 0.026, 2),
+      materials.ceramic,
+      xSign * 4.31,
+      -0.092,
+      0,
+      { castShadow: false },
+    );
+    plate(0.034, 0.018, 4.7, xSign * 4.52, -0.068, 0, materials.metalBright);
+    plate(0.034, 0.018, 4.7, xSign * 4.1, -0.068, 0, materials.metalBright);
+    plate(0.5, 0.018, 0.034, xSign * 4.31, -0.068, -2.27, materials.metalBright);
+    plate(0.5, 0.018, 0.034, xSign * 4.31, -0.068, 2.27, materials.metalBright);
+    for (let i = 0; i < 3; i += 1) {
+      plate(0.44, 0.022, 0.06, xSign * 4.31, -0.06, -1.6 + i * 1.6, i % 2 ? materials.metalDark : materials.metalBright);
+    }
+    plate(0.012, 0.005, 4.15, xSign * 4.34, -0.071, 0, materials.blueLightCore);
+    plate(0.055, 0.014, 0.4, xSign * 4.31, -0.069, -2.06, materials.metalBright);
+    plate(0.055, 0.014, 0.4, xSign * 4.31, -0.069, 2.06, materials.metalBright);
+  }
+
+  // A single additive printed-layer draws routed copper, pads and registration
+  // marks across all four bays. Reusing one material and one texture keeps this
+  // detail visually dense without adding four separate draw calls.
+  const inlayMaterial = new THREE.MeshBasicMaterial({
+    map: createInlayCircuitTexture(),
+    transparent: true,
+    opacity: 0.82,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    toneMapped: false,
+  });
+  for (const zSign of [-1, 1]) {
+    const inlay = new THREE.Mesh(new THREE.PlaneGeometry(7.72, 0.4), inlayMaterial);
+    inlay.rotation.x = -Math.PI / 2;
+    inlay.position.set(0, -0.071, zSign * 3.22);
+    inlay.renderOrder = 2;
+    inlay.castShadow = false;
+    group.add(inlay);
+  }
+  for (const xSign of [-1, 1]) {
+    const inlay = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 4.36), inlayMaterial);
+    inlay.rotation.x = -Math.PI / 2;
+    inlay.position.set(xSign * 4.31, -0.071, 0);
+    inlay.renderOrder = 2;
+    inlay.castShadow = false;
+    group.add(inlay);
+  }
+
+  // Layered lower lip: a dark continuous shadow gap with polished edge returns
+  // makes the perimeter read as a machined section rather than a flat extrusion.
+  for (const zSign of [-1, 1]) {
+    plate(9.88, 0.018, 0.07, 0, -0.181, zSign * (outerZ + 0.11), materials.metalDark);
+    plate(9.62, 0.007, 0.018, 0, -0.169, zSign * (outerZ + 0.105), materials.metalBright);
+  }
+  for (const xSign of [-1, 1]) {
+    plate(0.07, 0.018, 7.36, xSign * (outerX + 0.11), -0.181, 0, materials.metalDark);
+    plate(0.018, 0.007, 7.12, xSign * (outerX + 0.105), -0.169, 0, materials.metalBright);
+  }
+
+  // Outer side louvres, visible in the hero three-quarter view.
+  for (const zSign of [-1, 1]) {
+    for (let i = 0; i < 8; i += 1) {
+      const x = -3.5 + i * 1.0;
+      plate(0.42, 0.075, 0.008, x, -0.045, zSign * 4.049, materials.darkSlot);
+    }
+  }
+  for (const xSign of [-1, 1]) {
+    for (let i = 0; i < 5; i += 1) {
+      const z = -2.5 + i * 1.25;
+      plate(0.008, 0.075, 0.34, xSign * 5.209, -0.045, z, materials.darkSlot);
+    }
+  }
+
+  // A second, fine rail treatment: dark inlay channels, interrupted by small
+  // polished bridges and service fasteners.
+  for (const zSign of [-1, 1]) {
+    plate(8.1, 0.006, 0.052, 0, 0.123, zSign * 3.81, materials.darkSlot);
+    for (let i = 0; i < 7; i += 1) {
+      const x = -3.45 + i * 1.15;
+      plate(0.18, 0.009, 0.12, x, 0.127, zSign * 3.81, materials.metalBright);
+    }
+  }
+  for (const xSign of [-1, 1]) {
+    plate(0.052, 0.006, 5.9, xSign * 5.21, 0.123, 0, materials.darkSlot);
+    for (let i = 0; i < 5; i += 1) {
+      const z = -2.3 + i * 1.15;
+      plate(0.12, 0.009, 0.18, xSign * 5.21, 0.127, z, materials.metalBright);
+    }
+  }
+
+  // Inner-bezel service line and the four mid-rail fasteners. These are the
+  // tiny repetitions that make the cover read as an engineered assembly at
+  // close range without changing its silhouette.
+  plate(5.2, 0.008, 0.025, 0, 0.133, 2.71, materials.metalBright);
+  plate(5.2, 0.008, 0.025, 0, 0.133, -2.71, materials.metalBright);
+  plate(0.025, 0.008, 4.1, 2.71, 0.133, 0, materials.metalBright);
+  plate(0.025, 0.008, 4.1, -2.71, 0.133, 0, materials.metalBright);
+  for (const [x, z] of [[0, 3.81], [0, -3.81], [5.21, 0], [-5.21, 0]]) {
+    addScrew(group, materials, x, 0.128, z, 0.036);
+  }
 }
 
 function buildBrandPlate(materials) {
@@ -834,15 +1046,36 @@ function buildBrandPlate(materials) {
   const brandEdge = new THREE.LineSegments(
     new THREE.EdgesGeometry(plate.geometry, 30),
     new THREE.LineBasicMaterial({
-      color: 0x76a6c4,
+      color: 0x86b6d0,
       transparent: true,
-      opacity: 0.16,
+      opacity: 0.34,
       toneMapped: false,
     }),
   );
   brandEdge.position.y = 0.025;
   brandEdge.renderOrder = 4;
   group.add(brandEdge);
+
+  // A second inlaid bezel and tiny corner keys bring the brand carrier into the
+  // same machined language as the cover. Every piece stays inside the frozen
+  // carrier bounds so the assembly contract remains valid.
+  const brandPlate = (width, height, depth, x, y, z, material) => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material);
+    mesh.position.set(x, y, z);
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    group.add(mesh);
+  };
+  brandPlate(4.62, 0.012, 0.025, 0, 0.089, 2.255, materials.metalBright);
+  brandPlate(4.62, 0.012, 0.025, 0, 0.089, -2.255, materials.metalBright);
+  brandPlate(0.025, 0.012, 4.34, 2.455, 0.089, 0, materials.metalBright);
+  brandPlate(0.025, 0.012, 4.34, -2.455, 0.089, 0, materials.metalBright);
+  for (const [x, z] of [[-2.38, -2.2], [2.38, -2.2], [-2.38, 2.2], [2.38, 2.2]]) {
+    brandPlate(0.15, 0.022, 0.15, x, 0.091, z, materials.metalDark);
+    brandPlate(0.07, 0.006, 0.07, x, 0.105, z, materials.metalBright);
+  }
+  brandPlate(0.94, 0.008, 0.012, 0, 0.098, -2.313, materials.blueLightCore);
+  brandPlate(0.16, 0.006, 0.025, -2.38, 0.094, 2.22, materials.blueLightCore);
 
   return group;
 }

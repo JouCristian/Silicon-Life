@@ -1,10 +1,11 @@
-import { Box3, BufferGeometry, Group, InstancedMesh, Material, Matrix4, Mesh, MeshMatcapMaterial, MeshStandardMaterial, Vector3 } from 'three'
+import { Box3, BufferGeometry, Group, InstancedMesh, Material, Matrix4, Mesh, MeshMatcapMaterial, MeshPhysicalMaterial, MeshStandardMaterial, Vector3 } from 'three'
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js'
 import { smoothstep } from '../../motion/design'
 import { createChipModel, type ChipGeometry, type ChipPart } from './geometry.js'
-import { createMetalMatcap } from './materials'
+import { createMetalMatcap } from './materialsCompat'
 
 export const CHIP_SCALE = .72
+export type ChipMaterialMode = 'pbr' | 'matcap'
 const PARTS: ChipPart[] = ['Substrate', 'OuterFrame', 'PinArray', 'DecorativeDetails', 'TopCover', 'BrandPlate']
 
 /** Bake static meshes in each mechanical part, never across animated joints.
@@ -59,12 +60,14 @@ export interface IntegratedChip {
   dispose(): void
 }
 
-/** No renderer, controls, timers or CPU state. All poses derive from one input. */
-export function createIntegratedChip(): IntegratedChip {
+/** No renderer, controls, timers or CPU state. All poses derive from one input.
+ * `matcap` is an explicit software/CI fallback; the default remains full PBR. */
+export function createIntegratedChip({ materialMode = 'pbr' }: { materialMode?: ChipMaterialMode } = {}): IntegratedChip {
   const geometry = createChipModel()
-  const matcap = createMetalMatcap()
+  const matcap = materialMode === 'matcap' ? createMetalMatcap() : null
   const root = new Group()
-  root.name = 'IntegratedChipV2'
+  root.name = 'IntegratedChipV3'
+  root.userData.materialMode = materialMode
   // Raycaster otherwise descends into invisible Groups. Once parked, the
   // enclosure must not intercept teaching-plane events or raycast 180 pins.
   root.raycast = () => root.visible ? undefined : false
@@ -75,6 +78,16 @@ export function createIntegratedChip(): IntegratedChip {
   root.add(geometry.root)
   const originalBounds = new Box3().setFromObject(geometry.root)
   root.userData.assembledSize = originalBounds.getSize(new Vector3()).toArray()
+
+  // The lower enclosure used to fade in place. Keep each authored transform so
+  // the whole package can release toward the camera and clear the teaching
+  // plane, while every value remains derived from the single reveal progress.
+  const bases = new Map<ChipPart, { position: Vector3; quaternion: import('three').Quaternion }>()
+  for (const name of PARTS) {
+    const part = geometry.parts[name]
+    bases.set(name, { position: part.position.clone(), quaternion: part.quaternion.clone() })
+  }
+
   const fades = new Map<ChipPart, { material: Material; opacity: number; depthWrite: boolean }[]>()
   for (const name of PARTS) {
     const part = geometry.parts[name]
@@ -85,14 +98,30 @@ export function createIntegratedChip(): IntegratedChip {
       const clone = (original: Material) => {
         let material = clones.get(original)
         if (!material) {
-          // Preserve authored colors and rounded normals with one small studio
-          // reflection lookup. Unlit brand/silkscreen/glow materials stay intact.
-          material = original instanceof MeshStandardMaterial
-            ? new MeshMatcapMaterial({ color: original.color, matcap })
-            : original.clone()
+          if (matcap && original instanceof MeshStandardMaterial) {
+            // Software GPU / CI path: keep the exact geometry and animation but
+            // avoid full PBR fragment shaders that are especially costly under
+            // SwiftShader. Hardware still takes the authored material branch.
+            material = new MeshMatcapMaterial({ color: original.color, matcap })
+            material.opacity = original.opacity
+            material.side = original.side
+          } else {
+            // Preserve the authored PBR surfaces and procedural maps. The studio
+            // environment is supplied once by StudioEnvironment; no per-material
+            // render target or hidden second scene is created here.
+            material = original.clone()
+            if (material instanceof MeshPhysicalMaterial) {
+              material.envMapIntensity *= 1.02
+              material.dithering = true
+            } else if (material instanceof MeshStandardMaterial) {
+              material.envMapIntensity *= 1.02
+              material.dithering = true
+            }
+          }
           // Keep the shader variant stable across both directions. Switching
           // opaque/transparent during the reveal causes first-use compile stalls.
           material.transparent = true
+          material.needsUpdate = true
           clones.set(original, material)
         }
         return material
@@ -102,23 +131,52 @@ export function createIntegratedChip(): IntegratedChip {
     fades.set(name, [...clones.values()].map(material => ({ material, opacity: material.opacity, depthWrite: material.depthWrite })))
     batchPart(part)
   }
+
   let progress = 0, opacity = 1, disposed = false
   function setExplodeProgress(value: number, exitX = 18, exitY = 14) {
     if (disposed) return
     progress = Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0
     geometry.setExplodeProgress(progress)
-    const depart = smoothstep(.28, .98, progress)
-    const lift = smoothstep(0, .3, progress) * 2
-    for (const [name, sign] of [['TopCover', 1], ['BrandPlate', -1]] as const) {
+
+    // Brand plate leads, cover follows, and the load-bearing base releases once
+    // the cover has begun to reveal the teaching plane. All exits are additive
+    // offsets from the authored bases, never accumulating positions.
+    const brandDepart = smoothstep(.02, .32, progress)
+    const coverDepart = smoothstep(.14, .38, progress)
+    const release = smoothstep(.2, .64, progress)
+    const lift = smoothstep(0, .26, progress) * 2
+    for (const [name, sign, depart] of [
+      ['TopCover', 1, coverDepart],
+      ['BrandPlate', -1, brandDepart],
+    ] as const) {
       const part = geometry.parts[name]
       part.position.x += sign * depart * exitX / CHIP_SCALE
       part.position.z += sign * depart * exitY / CHIP_SCALE
       part.position.y += lift
     }
-    opacity = 1 - smoothstep(.12, .94, progress)
+
+    const lowerDrop: Record<'Substrate' | 'OuterFrame' | 'PinArray' | 'DecorativeDetails', number> = {
+      Substrate: .56, OuterFrame: .72, PinArray: .92, DecorativeDetails: .46,
+    }
+    for (const name of ['Substrate', 'OuterFrame', 'PinArray', 'DecorativeDetails'] as const) {
+      const part = geometry.parts[name]
+      const base = bases.get(name)!
+      part.position.copy(base.position)
+      part.quaternion.copy(base.quaternion)
+      part.position.z += release * exitY * lowerDrop[name] / CHIP_SCALE
+      // Local -Y becomes camera-space depth after the rigid mapping. The base
+      // recedes behind the board while it falls, so it never crosses the module
+      // plane during the mid-teardown frames.
+      part.position.y -= release * (name === 'PinArray' ? 3.6 : 2.6)
+    }
+
+    opacity = 1 - smoothstep(.18, .88, progress)
     for (const name of PARTS) {
-      const upper = name === 'TopCover' || name === 'BrandPlate'
-      const fade = upper ? opacity : 1 - smoothstep(.3, .78, progress)
+      const fade = name === 'BrandPlate'
+        ? 1 - smoothstep(.16, .44, progress)
+        : name === 'TopCover'
+          ? 1 - smoothstep(.4, .84, progress)
+          : 1 - smoothstep(.28, .52, progress)
       geometry.parts[name].visible = fade > .00001
       for (const original of fades.get(name)!) {
         const { material } = original

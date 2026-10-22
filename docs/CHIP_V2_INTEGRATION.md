@@ -1,5 +1,7 @@
 # DeepSeek V2 芯片集成
 
+> V3 已在 `feat/chip-v3-visual` 替换 Matcap 和材质/教学板管线，见 [CHIP_V3_VISUAL](CHIP_V3_VISUAL.md)。本文保留 V2 集成的历史记录。
+
 本轮只替换首页封装模型。CPU Core、ISA、ROM/RAM、项目管理、Trace、正式模块与连线坐标保持原实现。
 
 ## 来源与 Git

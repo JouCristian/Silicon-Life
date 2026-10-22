@@ -69,6 +69,36 @@ export function createBrandTexture() {
   const { canvas, ctx } = makeCanvas(1024, 1024);
   ctx.clearRect(0, 0, 1024, 1024);
 
+  // A very quiet die-ring and edge routing sit below the brand type. At close
+  // range they make the black carrier read as an engineered component; at the
+  // hero distance they disappear into the glass.
+  ctx.save()
+  ctx.strokeStyle = 'rgba(120, 158, 181, 0.12)'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.arc(512, 512, 338, 0, Math.PI * 2)
+  ctx.stroke()
+  ctx.strokeStyle = 'rgba(146, 181, 199, 0.08)'
+  for (let i = 0; i < 24; i += 1) {
+    const a = i / 24 * Math.PI * 2
+    ctx.beginPath()
+    ctx.moveTo(512 + Math.cos(a) * 330, 512 + Math.sin(a) * 330)
+    ctx.lineTo(512 + Math.cos(a) * (i % 3 === 0 ? 350 : 341), 512 + Math.sin(a) * (i % 3 === 0 ? 350 : 341))
+    ctx.stroke()
+  }
+  ctx.strokeStyle = 'rgba(127, 166, 188, 0.1)'
+  for (const [x, y, sx, sy] of [[146, 146, 1, 1], [878, 146, -1, 1], [146, 878, 1, -1], [878, 878, -1, -1]]) {
+    ctx.beginPath()
+    ctx.moveTo(x + 110 * sx, y)
+    ctx.lineTo(x + 54 * sx, y)
+    ctx.lineTo(x + 54 * sx, y + 48 * sy)
+    ctx.lineTo(x + 20 * sx, y + 48 * sy)
+    ctx.stroke()
+    ctx.fillStyle = 'rgba(151, 184, 201, 0.16)'
+    ctx.fillRect(x + 12 * sx, y + 62 * sy, 5, 5)
+  }
+  ctx.restore()
+
   // Fine registration marks keep the plate feeling manufactured rather than like a decal.
   ctx.strokeStyle = 'rgba(178, 199, 214, 0.18)';
   ctx.lineWidth = 1.2;
@@ -277,6 +307,73 @@ export function createSerialTexture() {
   ctx.moveTo(394, 74);
   ctx.lineTo(436, 74);
   ctx.stroke();
+
+  return makeTexture(canvas);
+}
+
+/**
+ * A transparent circuit inlay for the four deep cover bays. At normal viewing
+ * distance it reads as a thin layer of board art under the silver frame; up
+ * close it supplies the small pads and routed traces the package silhouette
+ * needs. It is deliberately pattern-only (no invented signal semantics).
+ */
+export function createInlayCircuitTexture() {
+  const { canvas, ctx } = makeCanvas(1024, 512);
+  ctx.clearRect(0, 0, 1024, 512);
+  let state = 0x7a31c0de;
+  const random = () => {
+    state = (Math.imul(state ^ (state >>> 15), 1 | state) + 0x6d2b79f5) | 0;
+    return ((state ^ (state >>> 14)) >>> 0) / 4294967296;
+  };
+
+  ctx.lineCap = 'square';
+  ctx.lineJoin = 'miter';
+  for (let i = 0; i < 54; i++) {
+    const x = 30 + random() * 960;
+    const y = 26 + random() * 460;
+    const length = 24 + random() * 120;
+    const vertical = random() > .55;
+    ctx.strokeStyle = i % 5 === 0
+      ? `rgba(187, 159, 112, ${.08 + random() * .09})`
+      : `rgba(112, 168, 194, ${.1 + random() * .12})`;
+    ctx.lineWidth = i % 7 === 0 ? 2.2 : 1;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    if (vertical) {
+      ctx.lineTo(x, y + length);
+      ctx.lineTo(x + (random() - .5) * 70, y + length);
+    } else {
+      ctx.lineTo(x + length, y);
+      ctx.lineTo(x + length, y + (random() - .5) * 50);
+    }
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(147, 178, 191, .16)';
+    ctx.fillRect(x - 2, y - 2, 4, 4);
+  }
+
+  // Sparse solder pads and passive outlines.
+  for (let i = 0; i < 26; i++) {
+    const x = 34 + random() * 956;
+    const y = 30 + random() * 452;
+    const w = 10 + random() * 24;
+    const h = 6 + random() * 12;
+    ctx.fillStyle = 'rgba(4, 9, 12, .7)';
+    ctx.strokeStyle = 'rgba(174, 195, 200, .18)';
+    ctx.lineWidth = 1;
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeRect(x, y, w, h);
+    ctx.fillStyle = 'rgba(188, 154, 105, .2)';
+    ctx.fillRect(x + 2, y + 2, 2, h - 4);
+  }
+
+  ctx.strokeStyle = 'rgba(155, 191, 207, .13)';
+  ctx.lineWidth = 1.5;
+  for (const [x, y] of [[26, 26], [998, 26], [26, 486], [998, 486]]) {
+    ctx.beginPath();
+    ctx.moveTo(x - 9, y); ctx.lineTo(x + 9, y);
+    ctx.moveTo(x, y - 9); ctx.lineTo(x, y + 9);
+    ctx.stroke();
+  }
 
   return makeTexture(canvas);
 }

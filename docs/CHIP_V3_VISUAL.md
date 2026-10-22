@@ -1,6 +1,8 @@
 # 芯生 V3 3D 视觉升级
 
 > **状态：V3 Visual Freeze（2026-10-23）** — 已人工验收并冻结。后续视觉调整必须从新的任务和分支开始，不应直接改动本基线。
+
+> GitHub 集成另行授权后，仅整理归档文件、文档与分支部署配置；冻结版视觉源码保持不变，见 [集成收尾说明](V3_GITHUB_INTEGRATION.md)。下文“不 Push”描述的是视觉冻结交付当时的历史状态。
 >
 > 本轮在 `feat/chip-v3-visual` 上完成，基线为 `feat/integrate-chip-v2` 的 `aae1c46`。只修改 Three.js / React Three Fiber 视觉层与场景样式；CPU Core、ROM/RAM、Trace、Store、RTL、项目持久化和指令执行未改动。已创建本地冻结 commit 与 `v3-visual-freeze` tag；不 Push、不 Merge、不部署。
 

@@ -2,6 +2,8 @@
 
 > V3 已在 `feat/chip-v3-visual` 替换 Matcap 和材质/教学板管线，见 [CHIP_V3_VISUAL](CHIP_V3_VISUAL.md)。本文保留 V2 集成的历史记录。
 
+> GitHub 集成整理：原型演示工程与 V2 调试截图保留在本地并取消跟踪，完整历史可从[冻结提交](https://github.com/JouCristian/Silicon-Life/tree/f2180794a22c8e120a6df371d5a71d0dc8fdb991)读取。以下装配、截图和基线结果均为 V2 的历史记录；当前 V3 正式资产位于 `src/scenes/chip/`。
+
 本轮只替换首页封装模型。CPU Core、ISA、ROM/RAM、项目管理、Trace、正式模块与连线坐标保持原实现。
 
 ## 来源与 Git
@@ -114,9 +116,9 @@ node scripts/chip-benchmark.mjs current
 
 | 状态 | 基线 | V2 集成 |
 | --- | --- | --- |
-| 首页组装 | [旧首页](validation/chip-v2/before-home.png) | [V2 组装](validation/chip-v2/assembled.png) |
-| 拆解姿态（0.38） | [旧拆解](validation/chip-v2/before-disassembly.png) | [V2 拆解](validation/chip-v2/disassembly.png) |
-| 完整工作台 | [旧工作台](validation/chip-v2/before-workbench.png) | [V2 工作台](validation/chip-v2/workbench.png) |
-| 返回首页 | [旧返回](validation/chip-v2/before-return.png) | [V2 返回](validation/chip-v2/returned.png) |
+| 首页组装 | [旧首页](https://github.com/JouCristian/Silicon-Life/blob/f2180794a22c8e120a6df371d5a71d0dc8fdb991/docs/validation/chip-v2/before-home.png) | [V2 组装](https://github.com/JouCristian/Silicon-Life/blob/f2180794a22c8e120a6df371d5a71d0dc8fdb991/docs/validation/chip-v2/assembled.png) |
+| 拆解姿态（0.38） | [旧拆解](https://github.com/JouCristian/Silicon-Life/blob/f2180794a22c8e120a6df371d5a71d0dc8fdb991/docs/validation/chip-v2/before-disassembly.png) | [V2 拆解](https://github.com/JouCristian/Silicon-Life/blob/f2180794a22c8e120a6df371d5a71d0dc8fdb991/docs/validation/chip-v2/disassembly.png) |
+| 完整工作台 | [旧工作台](https://github.com/JouCristian/Silicon-Life/blob/f2180794a22c8e120a6df371d5a71d0dc8fdb991/docs/validation/chip-v2/before-workbench.png) | [V2 工作台](https://github.com/JouCristian/Silicon-Life/blob/f2180794a22c8e120a6df371d5a71d0dc8fdb991/docs/validation/chip-v2/workbench.png) |
+| 返回首页 | [旧返回](https://github.com/JouCristian/Silicon-Life/blob/f2180794a22c8e120a6df371d5a71d0dc8fdb991/docs/validation/chip-v2/before-return.png) | [V2 返回](https://github.com/JouCristian/Silicon-Life/blob/f2180794a22c8e120a6df371d5a71d0dc8fdb991/docs/validation/chip-v2/returned.png) |
 
-[正常转场中段实拍](validation/chip-v2/live-transition.png) · [正反向逐帧记录](validation/chip-v2/motion-samples.json)。1280/1440/1920 全套截图保留在 `.local/chip-v2/final/`，可用新增 E2E 重新生成。
+[正常转场中段实拍](https://github.com/JouCristian/Silicon-Life/blob/f2180794a22c8e120a6df371d5a71d0dc8fdb991/docs/validation/chip-v2/live-transition.png) · [正反向逐帧记录](https://github.com/JouCristian/Silicon-Life/blob/f2180794a22c8e120a6df371d5a71d0dc8fdb991/docs/validation/chip-v2/motion-samples.json)。1280/1440/1920 全套截图保留在 `.local/chip-v2/final/`，可用新增 E2E 重新生成。

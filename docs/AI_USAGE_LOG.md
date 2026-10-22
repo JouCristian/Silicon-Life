@@ -1,5 +1,13 @@
 # AI 使用记录
 
+## 2026-10-23 · V3 冻结版 GitHub 集成收尾
+
+- 用户人工验收冻结 `f218079`，授权正常 Push、创建面向 main 的 V2+V3 PR 和检查实际 Actions；禁止自动 Merge、部署及新开发。
+- 核对 V3 继承 V2 的 `f882e2f` / `aae1c46`，且 Core、Store、IO、projects 和 topology.ts 与 main 一致；保留本地 annotated `v3-visual-freeze`，不推送 Tag。
+- 仅以独立整理提交取消跟踪历史原型/重复 vendor/V2 调试截图，保留磁盘原件和全部 Git 历史，归档链接指向冻结提交；`src/`、`e2e/`、`scripts/` 和依赖保持冻结版内容。
+- 为遵守不部署要求，按 Vercel 官方 Git Configuration 仅禁用当前 feature branch 的自动部署；保留 main 既有规则。没有连接 v0、创建新项目或主动部署。
+- GitHub CI 若失败，先读取实际步骤/日志并报告原因，不擅自修改冻结视觉或降低 CPU 测试期望。集成边界见 `docs/V3_GITHUB_INTEGRATION.md`。
+
 ## 2026-10-22 · DeepSeek V2 模型集成
 
 - 用户提供 DeepSeek 制作并冻结的程序化几何、品牌纹理、180 根 QFP 针脚、机械装配关系与无状态拆解 API（`69d8113`）。用户规定只移植模型，不移植原型交互、DemoModules、演示线路或虚构信号；禁止本轮 Push、Merge、部署及 CPU Core 改动。

@@ -4,7 +4,7 @@ DeepSeek V3 芯片视觉已在本分支完成：完整封装、电影化解构�
 
 基于真实 RV32I 单周期架构的三维交互教学网站。Sprint 03.1 支持 **ADDI、ADD、LW、SW、BEQ** 的最多 10 个本地项目、65536 条 ROM、1/64/256 KiB RAM、IndexedDB 自动保存和 JSON / HEX 备份、RTL 信号快照和连续可逆的芯片展开。
 
-仓库：[JouCristian/Silicon-Life](https://github.com/JouCristian/Silicon-Life)，生产环境：[silicon-life.vercel.app](https://silicon-life.vercel.app/)。PR #1、#2、#3 已合并；`feat/chip-v3-visual` 从 `feat/integrate-chip-v2` 的 `aae1c46` 建立，仅进行本地视觉开发和验证，未推送、未创建 PR、未触发生产部署。未连接 v0。
+仓库：[JouCristian/Silicon-Life](https://github.com/JouCristian/Silicon-Life)，生产环境：[silicon-life.vercel.app](https://silicon-life.vercel.app/)。PR #1、#2、#3 已合并；`feat/chip-v3-visual` 完整包含 V2 集成 `aae1c46` 和 V3 人工验收冻结 `f218079`。GitHub 集成范围、历史原型归档、分支禁部署与标签策略见 [V3_GITHUB_INTEGRATION](docs/V3_GITHUB_INTEGRATION.md)。本地冻结 Tag 保留，不自动合并或部署。未连接 v0。
 
 ## 本地运行
 

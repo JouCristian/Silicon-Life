@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { assembly, binary, decode, encode, hex, type Instruction } from '../core/isa'
+import { assembly, binary, decode, defaultInstruction, encode, hex, INSTRUCTION_OPS, instructionFormat, type Instruction } from '../core/isa'
 import { useLabView } from '../stores/useLabStore'
 import { GlideSelect } from './GlideSelect'
 
@@ -27,19 +27,23 @@ function EditableInstruction({ index, initial }: { index: number; initial: Instr
       ariaLabel="指令"
       value={draft.op}
       onChange={value => {
-        const op = value as Instruction['op'], rd = 'rd' in draft ? draft.rd : 3, rs1 = draft.rs1
-        change(op === 'ADD' ? { op, rd, rs1, rs2: 2 } : op === 'BEQ' || op === 'SW' ? { op, rs1, rs2: 2, imm: 0 } : { op, rd, rs1, imm: 0 })
+        let next = defaultInstruction(value as Instruction['op'])
+        if ('rd' in next && 'rd' in draft) next = { ...next, rd: draft.rd ?? 0 }
+        if ('rs1' in next && 'rs1' in draft) next = { ...next, rs1: draft.rs1 ?? 0 }
+        if ('rs2' in next && 'rs2' in draft) next = { ...next, rs2: draft.rs2 }
+        change(next)
         setImmText('0')
       }}
-      options={['ADDI', 'ADD', 'LW', 'SW', 'BEQ'].map(op => ({ value: op, label: op }))}
+      options={INSTRUCTION_OPS.map(op => ({ value: op, label: op }))}
       size="sm"
       menuWidth={120}
     /></label>
-      {'rd' in draft && <RegisterSelect label="rd" value={draft.rd} onChange={rd => change({ ...draft, rd })} />}
-      <RegisterSelect label="rs1" value={draft.rs1} onChange={rs1 => change({ ...draft, rs1 })} />
+      {'rd' in draft && <RegisterSelect label="rd" value={draft.rd ?? 0} onChange={rd => change({ ...draft, rd })} />}
+      {'rs1' in draft && <RegisterSelect label="rs1" value={draft.rs1 ?? 0} onChange={rs1 => change({ ...draft, rs1 })} />}
       {'rs2' in draft && <RegisterSelect label="rs2" value={draft.rs2} onChange={rs2 => change({ ...draft, rs2 })} />}
-      {'imm' in draft && <label>{draft.op === 'BEQ' ? '分支偏移 / 字节' : '立即数'}<input aria-label="立即数" type="number" min={draft.op === 'BEQ' ? -4096 : -2048} max={draft.op === 'BEQ' ? 4094 : 2047} step={draft.op === 'BEQ' ? 2 : 1} value={immText} onChange={e => { setSaved(false); setImmText(e.target.value) }} /></label>}
-    </div><div className="encoding"><code>{error ? '无效编码' : hex(word)}</code><span>{draft.op === 'ADD' ? 'R' : draft.op === 'SW' ? 'S' : draft.op === 'BEQ' ? 'B' : 'I'}-type</span></div>
+      {'imm' in draft && <label>{instructionFormat(draft.op) === 'B' || draft.op === 'JAL' ? 'PC 相对偏移 / 字节' : instructionFormat(draft.op) === 'U' ? '高 20 位字段（0–1048575）' : draft.op.endsWith('LI') || draft.op === 'SRAI' ? '立即数 / 移位量' : '立即数'}<input aria-label="立即数" type="number" step={instructionFormat(draft.op) === 'B' || draft.op === 'JAL' ? 2 : 1} value={immText} onChange={e => { setSaved(false); setImmText(e.target.value) }} /></label>}
+      {draft.op === 'FENCE' && (['pred', 'succ', 'fm'] as const).map(field => <label key={field}>{field}<input aria-label={`FENCE ${field}`} type="number" min={0} max={15} value={draft[field] ?? (field === 'fm' ? 0 : 15)} onChange={e => change({ ...draft, [field]: e.target.value === '' ? NaN : Number(e.target.value) })} /></label>)}
+    </div><div className="encoding"><code>{error ? '无效编码' : hex(word)}</code><span>{instructionFormat(draft.op)}-type</span></div>
     <code className="binary-code" aria-label="32 位机器码">{error ? '请修正指令参数' : binary(word).match(/.{4}/g)?.join(' ')}</code>
     {(error || applyError) && <p role="alert" className="error">{error || applyError}</p>}
     <button className="button subtle full" disabled={!!error} onClick={() => { try { updateInstruction(index, instruction); setSaved(true); setApplyError('') } catch (e) { setApplyError((e as Error).message) } }}>应用到程序并复位</button>

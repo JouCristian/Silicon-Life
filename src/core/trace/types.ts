@@ -18,7 +18,8 @@ export interface CpuState {
   readonly fault?: { readonly source: 'rtl' | 'host'; readonly cause?: number }
 }
 
-/** Names and encodings correspond to cpu_top.v / cpu_defs.vh. */
+/** Names/encodings are read from cpu_top.v / cpu_defs.vh. Software snapshots
+ * model a ready core (reset=0); they are not a claim of RTL co-simulation. */
 export interface SignalSnapshot {
   readonly pc_value: number
   readonly pc_plus4: number
@@ -34,27 +35,36 @@ export interface SignalSnapshot {
   readonly wb_data: number
   readonly reg_write: 0 | 1
   readonly rf_we: 0 | 1
-  readonly alu_op: 0
-  readonly alu_a_sel: 0
+  readonly alu_op: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+  readonly alu_a_sel: 0 | 1 | 2
   readonly alu_b_imm: 0 | 1
-  readonly imm_sel: 0 | 1 | 2
-  readonly wb_sel: 0 | 1
+  readonly imm_sel: 0 | 1 | 2 | 3 | 4
+  readonly wb_sel: 0 | 1 | 2
   readonly mem_read: 0 | 1
   readonly mem_write: 0 | 1
-  readonly mem_size: 0 | 2
-  readonly load_unsigned: 0
+  readonly mem_size: 0 | 1 | 2
+  readonly load_unsigned: 0 | 1
   readonly dmem_addr: number
   readonly dmem_wdata: number
   readonly dmem_rdata: number
   readonly load_data: number
   readonly dmem_we: 0 | 1
-  readonly dmem_wstrb: 0 | 15
+  readonly dmem_wstrb: number
   readonly branch: 0 | 1
   readonly branch_op: number
   readonly branch_taken: 0 | 1
   readonly redirect: 0 | 1
   readonly target: number
   readonly normal_next_pc: number
+  readonly jump: 0 | 1
+  readonly jalr: 0 | 1
+  readonly illegal: 0 | 1
+  readonly system_trap: 0 | 1
+  readonly system_cause: 3 | 11
+  readonly fault: 0 | 1
+  readonly fault_cause: number
+  readonly trap: 0 | 1
+  readonly trap_cause: number
 }
 
 export type RouteId = 'imem_addr' | 'instr_rf' | 'instr_decode' | 'instr_imm' | 'alu_a' | 'rs2_data' | 'imm' | 'alu_b' | 'alu_result' | 'wb_data' | 'next_pc' | 'alu_b_imm' | 'dmem_addr' | 'dmem_wdata' | 'dmem_rdata' | 'branch_inputs' | 'branch_b' | 'redirect' | 'target' | 'branch_imm' | 'pc_plus4' | 'mem_control'
@@ -80,5 +90,10 @@ export interface ExecutionTrace {
   readonly write: { readonly rd: number; readonly value: number; readonly committed: boolean }
   readonly phases: Readonly<Record<Phase, readonly ModuleId[]>>
   readonly transfers: readonly TraceTransfer[]
-  readonly memoryAccess?: { readonly kind: 'load' | 'store'; readonly address: number; readonly data: number; readonly byteStrobes: number }
+  /** Valid decoded system traps do not retire or perform writes. */
+  readonly trap?: { readonly cause: number; readonly reason: string }
+  /** Paths absent from the frozen teaching topology are disclosed, never
+   * animated along an unrelated wire. Values remain available in signals. */
+  readonly visualizationOmissions?: readonly string[]
+  readonly memoryAccess?: { readonly kind: 'load' | 'store'; readonly address: number; readonly data: number; readonly byteStrobes: number; readonly width?: 8 | 16 | 32 }
 }

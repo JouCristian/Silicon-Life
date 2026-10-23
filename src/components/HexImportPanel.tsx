@@ -65,7 +65,7 @@ export function HexImportPanel({ target }: { target: 'ROM' | 'RAM' }) {
         menuWidth={180}
       /></label><label className="strict-import"><input type="checkbox" checked={strict} onChange={e => setStrict(e.target.checked)} />严格模式：拒绝未支持指令</label></>}
     {reading && <p role="status" className="field-help">正在解析，请稍候…</p>}
-    {!ram && preview?.image && <p className="field-help">HEX 解析成功，尚未装载。确认后保留全部机器码；当前 CPU 仅支持 ADDI、ADD、LW、SW、BEQ，完整程序可执行性需另行检查。</p>}
+    {!ram && preview?.image && <p className="field-help">HEX 解析成功，尚未装载。确认后保留全部机器码；CPU 支持 RV32I，ECALL/EBREAK 停止，M/C/A、CSR、FENCE.I、MMIO 与操作系统未实现，完整程序可执行性需另行检查。</p>}
     {preview?.image && <div className="hex-preview" data-testid={`${target.toLowerCase()}-preview`}><p>{preview.image.format} · {width}-bit{preview.image.byteOrder ? ` · ${preview.image.byteOrder}` : ''} · {preview.image.values.length.toLocaleString()} 单元</p>{ram && <p>单元 0 → CPU 字节地址 {hex(preview.address ?? 0)}</p>}
       <ol>{preview.image.values.slice(0, 8).map((word, i) => <li key={i}><code>{hex(word)}</code><span>{ram ? `字节 ${(preview.address ?? 0) + i * width / 8}` : `${hex((append ? program.length * 4 : 0) + i * 4)} · ${instructionRow(preview.image.values, i).assembly}`}</span></li>)}</ol>
       {preview.image.values.length > 8 && <p>另有 {(preview.image.values.length - 8).toLocaleString()} 单元</p>}</div>}

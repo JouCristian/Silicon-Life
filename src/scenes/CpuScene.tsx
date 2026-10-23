@@ -17,6 +17,7 @@ import { StudioEnvironment } from './chip/StudioEnvironment'
 import { cameraPathEase, cinematicEase } from './chip/cinematic'
 import type { IntegratedChip } from './chip/model'
 import { TeachingBoard } from './teaching/TeachingBoard'
+import { ALU_LABELS } from '../core/cpu'
 
 type Anchor = RefObject<HTMLDivElement | null>
 const SPRING = (): SpringState => ({ position: 0, velocity: 0 })
@@ -253,12 +254,12 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
       case 'imem': return hex(s.imem_rdata)
       case 'decoder': return `B_imm=${s.alu_b_imm} · WE=${s.reg_write}`
       case 'imm': return `${i32(s.imm)}`
-      case 'regfile': return phase === 'writeback' && s.reg_write ? `x${trace.write.rd} ← ${i32(s.wb_data)}` : `x${trace.instruction.rs1} → ${i32(s.rs1_data)}`
+      case 'regfile': return phase === 'writeback' && s.reg_write ? trace.write.committed ? `x${trace.write.rd} ← ${i32(s.wb_data)}` : 'x0 · 丢弃写回' : `x${trace.word >>> 15 & 31} → ${i32(s.rs1_data)}`
       case 'mux': return `${i32(s.alu_b)}`
-      case 'alu': return `${i32(s.alu_a)} + ${i32(s.alu_b)} = ${i32(s.alu_result)}`
+      case 'alu': return `${ALU_LABELS[s.alu_op]}(${i32(s.alu_a)}, ${i32(s.alu_b)}) = ${i32(s.alu_result)}`
       case 'wb': return `${i32(s.wb_data)}`
       case 'dmem': return trace.memoryAccess ? `${trace.memoryAccess.kind === 'load' ? 'R' : 'W'} [${s.dmem_addr}] = ${i32(trace.memoryAccess.data)}` : '未访问'
-      case 'branch': return s.branch ? `${i32(s.rs1_data)} = ${i32(s.rs2_data)} ? ${s.branch_taken}` : '未参与'
+      case 'branch': return s.branch ? `${trace.instruction.op}(${hex(s.rs1_data)}, ${hex(s.rs2_data)}) → ${s.branch_taken}` : '未参与'
       case 'nextpc': return hex(s.next_pc)
     }
   }

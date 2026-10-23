@@ -76,3 +76,11 @@
 - 原代码四个相关 E2E 在本机全部通过。两次有限修复尝试分别为 3/4、2/4；捕获首次显露帧空洞和候选异步编译 pageerror，遵照用户两次上限停止。
 - 失败补丁、帧数据与上下文归档于忽略目录 .local/v3-ci-investigation/；已回退所有运行时与测试候选。没有放宽 timeout、跳过测试或修改 CPU 期望。
 - 只提交 docs/V3_CI_INVESTIGATION.md 和此贡献记录；未 Push、Merge、部署或移动冻结 Tag。完整测试矩阵未运行，不宣称修复完成。
+
+## 2026-10-23 · Sprint 05 RV32I
+
+- 用户验收的 Logisim v3 HEX / 1MiB ROM 修改先提交为 4e176a5，确认工作区干净后新建 feat/sprint-05-rv32i。
+- Codex 只读核对 rtl/cpu 的 8 个原件及控制编码，SHA-256 与历史基线一致。现有 RTL 已含 RV32I，未修改 FPGA 源码；Icarus 语法编译通过，没有 Testbench 联合仿真或等价结论。
+- 补齐 40 条基础整数指令编码/译码/执行、字节/半字内存、跳转和系统停止快照；保持单条架构提交与回放隔离。缺少几何的路径明确标注，不沿不相关连线制造数据流；V3 几何、相机、动画参数未改。
+- 使用 40 条独立机器码向量、BigInt ALU 参考及 3 个真实小程序验证。类型检查和最终 9 个相关测试文件共 232 项通过，未运行完整 E2E。提供 examples/sprint05/*.hex 供人工验收。
+- FENCE 为单核有序屏障空操作；ECALL/EBREAK 分别 cause=11/3，非退休停止。未实现 CSR、OS、MMIO 或 M/A/C 等扩展。没有 Push、Merge、部署或移动冻结 Tag。

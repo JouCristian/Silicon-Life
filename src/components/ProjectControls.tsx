@@ -6,6 +6,7 @@ import { downloadText } from '../io/download'
 import { parseFileWorker } from '../io/workerClient'
 import { HexFilePicker } from './HexFilePicker'
 import { GlideSelect } from './GlideSelect'
+import { MAX_PROGRAM_WORDS } from '../io/program'
 
 export function ProjectControls() {
   const { projects, activeProjectId, programId, loadProgram, createProject, renameProject, deleteProject,
@@ -54,7 +55,7 @@ export function ProjectControls() {
         try {
           if (file.size > MAX_PROJECT_JSON_BYTES) throw new Error('项目 JSON 不得超过 4 MiB')
           const text = await file.text(); if (abort.signal.aborted) return
-          const result = await parseFileWorker(text, 32, 65536, 'project', abort.signal)
+          const result = await parseFileWorker(text, 32, MAX_PROGRAM_WORDS, 'project', abort.signal)
           if (!abort.signal.aborted) importProject(restoreProject(result.project))
         } catch (e) { if (!abort.signal.aborted) setError((e as Error).message) }
         finally { if (!abort.signal.aborted) setReading(false) }

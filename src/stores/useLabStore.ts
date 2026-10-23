@@ -218,7 +218,7 @@ export const useLabStore = create<LabStore>((set, get) => ({
     const s = get()
     if (!words.length) throw new Error('导入程序不能为空')
     const program = validateProgram(append ? [...s.program, ...Array.from(words)] : words, strict)
-    set({ ...resetSession(s), ...projectPatch(s, program), customBaseline: program, selectedInstruction: 0, projectNotice: `导入成功：${words.length.toLocaleString()} 条指令` })
+    set({ ...resetSession(s), ...projectPatch(s, program), customBaseline: program, selectedInstruction: 0, projectNotice: `HEX 加载成功：${words.length.toLocaleString()} 个 32 位字已完整载入；加载成功不代表可以完整运行，当前 CPU 仅支持 ADDI、ADD、LW、SW、BEQ。` })
   },
   setInitialMemory: memory => {
     const s = get()

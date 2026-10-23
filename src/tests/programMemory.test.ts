@@ -4,7 +4,7 @@ import { readWord } from '../core/memory'
 import { PROGRAMS } from '../data/programs'
 import { parseHex } from '../io/hex'
 import { editMemory, memoryImage } from '../io/memoryImage'
-import { insertWord, moveWord, programListing, removeWord, validateProgram } from '../io/program'
+import { insertWord, MAX_PROGRAM_WORDS, moveWord, programListing, removeWord, validateProgram } from '../io/program'
 import { useLabStore } from '../stores/useLabStore'
 
 const store = () => useLabStore.getState()
@@ -56,9 +56,9 @@ describe('custom programs and address mapping', () => {
   })
   it('rejects bad/oversized imports atomically, including append capacity', () => {
     const before = store()
-    for (const words of [[0xffffffff], [], Array(65537).fill(add(1))]) expect(() => store().importProgram(words, false, true)).toThrow()
+    for (const words of [[0xffffffff], [], Array(MAX_PROGRAM_WORDS + 1).fill(add(1))]) expect(() => store().importProgram(words, false, true)).toThrow()
     expect(store()).toBe(before)
-    store().createCustomProgram(Array(65536).fill(add(1)))
+    store().createCustomProgram(Array(MAX_PROGRAM_WORDS).fill(add(1)))
     const full = store()
     expect(() => store().importProgram([add(2)], true)).toThrow()
     expect(store()).toBe(full)
@@ -80,6 +80,30 @@ describe('custom programs and address mapping', () => {
 })
 
 describe('initial configuration survives execution and reset', () => {
+  it.each([
+    'v3.0 hex words plain\n00500093 00700113 002081b3',
+    'v3.0 hex words addressed\n0002: 002081b3\n0000: 00500093 00700113',
+    'v3.0 hex bytes plain big-endian\n0050009300700113002081b3',
+    'v3.0 hex bytes addressed little-endian\n0008: b3812000\n0000: 9300500013017000',
+  ])('executes imported Logisim ROM with unchanged initial RAM/registers: %s', source => {
+    store().setInitialMemory(editMemory(store().initialMemory, 64, '42', 32))
+    store().setInitialRegister(4, 99)
+    store().importProgram(parseHex(source).values, false, true)
+    finish()
+    expect(store().cpu.registers.slice(0, 5)).toEqual([0, 5, 7, 12, 99])
+    expect(store().cpu.pc).toBe(12)
+    expect(store().cpu.retired).toBe(3)
+    expect(readWord(store().initialMemory, 64)).toBe(42)
+  })
+  it('keeps ROM append/reset and failed-import atomicity for Logisim files', () => {
+    store().createCustomProgram([add(1)])
+    store().importProgram(parseHex('v3.0 hex words addressed\n0001: 00500093').values, true)
+    expect(Array.from(store().program)).toEqual([add(1), 0, 0x00500093])
+    expect(store().cpu.pc).toBe(0)
+    const before = store()
+    expect(() => store().importProgram(parseHex('v3.0 hex words addressed\n40000: 1').values)).toThrow()
+    expect(store()).toBe(before)
+  })
   it('LW reads manually configured RAM; SW modifies runtime only; reset restores both configurations', () => {
     store().setInitialMemory(editMemory(store().initialMemory, 64, '42', 32))
     store().setInitialRegister(2, 99)

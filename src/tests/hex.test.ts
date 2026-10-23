@@ -11,7 +11,7 @@ describe('bounded HEX file policy', () => {
   it('reads plain multiline words and optional 0x prefix', () => {
     expect(parseHex('00500093\n0x00700113\t002081b3').values).toEqual([0x00500093, 0x00700113, 0x002081b3])
   })
-  it.each(['v3.0 hex words plain\n00', ':020000000000FE', 'v2.0 addressed\n00', '@00 01', '2*00', 'v2.0 raw\n0*00', 'v2.0 raw\n-1*00', 'v2.0 raw\n1.5*00', 'xyz', ''])('rejects unsupported or malformed input: %s', source => {
+  it.each([':020000000000FE', 'v2.0 addressed\n00', '@00 01', '2*00', 'v2.0 raw\n0*00', 'v2.0 raw\n-1*00', 'v2.0 raw\n1.5*00', 'xyz', ''])('rejects unsupported or malformed input: %s', source => {
     expect(() => parseHex(source)).toThrow()
   })
   it('rejects large bytes, long files, bombs and capacity+1 before expansion', () => {
@@ -28,6 +28,88 @@ describe('bounded HEX file policy', () => {
   it('round-trips canonical 32-bit ROM', () => {
     const words = [0xfff00093, 0x00500093, 0x002081b3]
     expect(parseHex(exportHex(words, 32)).values).toEqual(words)
+  })
+})
+
+describe('Logisim-evolution v3.0 HEX', () => {
+  it('reads words plain without swapping the logical word', () => {
+    const image = parseHex('\uFEFF# ROM\nv3.0 hex words plain\n0x00500093 ffffffff # data\n00700113')
+    expect(image.format).toBe('logisim-v3-words-plain')
+    expect(image.values).toEqual([0x00500093, 0xffffffff, 0x00700113])
+    expect(image.byteOrder).toBeUndefined()
+    expect(Object.isFrozen(image.values)).toBe(true)
+    expect(parseHex('v3.0 hex words plain\n00 ff', 8).values).toEqual([0, 255])
+  })
+  it('uses hex WORD addresses, zero holes, out-of-order lines and last-write-wins', () => {
+    const image = parseHex('v3.0 hex words addressed\n0x000a: ffffffff\n0002 11223344 55667788\n0003 : 0000002a  ascii ignored\n0000: 00500093')
+    expect(image.values).toEqual([0x00500093, 0, 0x11223344, 42, 0, 0, 0, 0, 0, 0, 0xffffffff])
+    expect(parseHex('v3.0 hex words\n0001: ff', 8).values).toEqual([0, 255])
+  })
+  it.each(['big-endian', 'little-endian'])('keeps words unchanged even when an irrelevant %s tag is present', endian => {
+    expect(parseHex(`v3.0 hex words plain ${endian}\n11223344`).values).toEqual([0x11223344])
+  })
+  it('reads continuous bytes across plain groups/lines; defaults to big endian', () => {
+    const image = parseHex('v3.0 hex bytes plain\n0x11 22\n3344 ffffffff')
+    expect(image.values).toEqual([0x11223344, 0xffffffff])
+    expect(image.byteOrder).toBe('big-endian')
+    expect(parseHex('v3.0 hex bytes plain\n1 1 223344').values).toEqual([0x11223344])
+    expect(parseHex('v3.0 hex bytes\n11223344').values).toEqual([0x11223344])
+  })
+  it.each(['plain', 'addressed'])('converts %s bytes with explicit byte order', style => {
+    const body = style === 'plain' ? '44332211 2a000000' : '0004: 2a000000\n0000: 44332211'
+    expect(parseHex(`v3.0 hex bytes ${style} little-endian\n${body}`).values).toEqual([0x11223344, 42])
+    expect(parseHex(`v3.0 hex bytes ${style} big-endian\n${body}`).values).toEqual([0x44332211, 0x2a000000])
+  })
+  it('uses BYTE addresses, handles unaligned fragments and overwrites just the addressed lanes', () => {
+    const data = '0003: 44 55\n0000: 11 22\n0001: ff'
+    expect(parseHex(`v3.0 hex bytes addressed\n${data}`).values).toEqual([0x11ff0044, 0x55000000])
+    expect(parseHex(`v3.0 hex bytes addressed little-endian\n${data}`).values).toEqual([0x4400ff11, 0x55])
+    const xxd = '00000000: 1122 3344  ....\n00000008: ff  . # comment'
+    expect(parseHex(`v3.0 hex bytes addressed\n${xxd}`).values).toEqual([0x11223344, 0, 0xff000000])
+  })
+  it('pads a partial cell with zeros, preserving complete bytes, and ignores byte order for 8-bit cells', () => {
+    expect(parseHex('v3.0 hex bytes plain\n1122').values).toEqual([0x11220000])
+    expect(parseHex('v3.0 hex bytes plain little-endian\n1122').values).toEqual([0x2211])
+    for (const endian of ['big-endian', 'little-endian']) {
+      expect(parseHex(`v3.0 hex bytes addressed ${endian}\n0002: 11ff`, 8).values).toEqual([0, 0, 17, 255])
+    }
+  })
+  it('checks the highest addressed extent, including holes, before writing', () => {
+    expect(parseHex('v3.0 hex words addressed\n000f: ffffffff', 32, 16).values).toHaveLength(16)
+    expect(parseHex('v3.0 hex bytes addressed\n003f: ff', 32, 16).values[15]).toBe(255)
+    for (const source of ['v3.0 hex words addressed\n0010: 1', 'v3.0 hex bytes addressed\n0040: 00', 'v3.0 hex bytes addressed\n003f: ff00', 'v3.0 hex words addressed\nffffffffffffffff: 1']) {
+      expect(() => parseHex(source, 32, 16)).toThrow('容量')
+    }
+  })
+  it.each([
+    'v3.1 hex words plain\n00', 'v3.0 hex bananas plain\n00',
+    'v3.0 hex bytes plain middle-endian\n00',
+    'v3.0 hex words addressed\n-1: ff', 'v3.0 hex words addressed\n0000:',
+    'v3.0 hex words addressed\n00500093', 'v3.0 hex bytes plain\n123',
+    'v3.0 hex bytes addressed\n0000: 1', 'v3.0 hex bytes plain\n11zz',
+    'v3.0 hex words plain\n2*ff', 'v3.0 hex words plain\n100000000', 'v3.0 hex words plain\n# empty',
+  ])('rejects malformed data atomically instead of silently truncating: %s', source => {
+    expect(() => parseHex(source)).toThrow()
+  })
+  it('rejects words outside the selected RAM width', () => {
+    expect(() => parseHex('v3.0 hex words plain\n100', 8)).toThrow('8 位')
+  })
+  it('supports the entire 256KiB byte RAM and its final addressed byte', () => {
+    const image = parseHex('v3.0 hex bytes addressed little-endian\n3ffff: a5', 8, 262144)
+    const memory = memoryImage(image, 0, 262144)
+    expect(memory.length).toBe(262144)
+    expect(memory[262143]).toBe(0xa5)
+    expect(memory[0]).toBe(0)
+    expect(() => parseHex('v3.0 hex bytes addressed\n40000: 00', 8, 262144)).toThrow('容量')
+  })
+  it('maps file addresses relative to the existing RAM offset and enforces capacity/alignment', () => {
+    const image = parseHex('v3.0 hex bytes addressed little-endian\n0003: 11\n0004: 44332211')
+    const memory = memoryImage(image, 64)
+    expect(memory.slice(64, 72)).toEqual([0, 0, 0, 17, 0x44, 0x33, 0x22, 0x11])
+    expect(readWord(memory, 68)).toBe(0x11223344)
+    expect(() => memoryImage(image, 1020)).toThrow('边界')
+    expect(() => memoryImage(image, 65)).toThrow('对齐')
+    expect(memoryImage(parseHex('v3.0 hex bytes addressed\n1: ff', 8), 65)[66]).toBe(255)
   })
 })
 

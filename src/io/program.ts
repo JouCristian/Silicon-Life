@@ -1,7 +1,7 @@
 import { assembly, decode, hex, u32 } from '../core/isa'
-import { InstructionROM, type ProgramWords } from '../core/rom'
+import { InstructionROM, MAX_ROM_WORDS, type ProgramWords } from '../core/rom'
 
-export const MAX_PROGRAM_WORDS = 65536
+export const MAX_PROGRAM_WORDS = MAX_ROM_WORDS
 export interface ProgramIssue { readonly index: number; readonly word: number; readonly reason: string }
 export class ProgramValidationError extends Error {
   constructor(readonly issues: readonly ProgramIssue[]) {

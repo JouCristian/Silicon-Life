@@ -1,6 +1,6 @@
 import { initialState } from '../core/cpu'
 import { createMemory, type DataMemory } from '../core/memory'
-import { InstructionROM } from '../core/rom'
+import { InstructionROM, MAX_ROM_WORDS } from '../core/rom'
 import { validateProgram } from '../io/program'
 
 export const PROJECT_SCHEMA = 1
@@ -38,7 +38,7 @@ export function projectRecord(project: Project): ProjectRecord {
 function source(value: unknown, kind: 'word' | 'byte' | 'register'): ArrayLike<number> {
   if (!(Array.isArray(value) || value instanceof Uint32Array || value instanceof Uint8Array)) throw new Error(`项目 ${kind} 数据格式无效`)
   const max = kind === 'byte' ? 255 : 0xffffffff
-  if (value.length > (kind === 'byte' ? 262144 : kind === 'word' ? 65536 : 32)) throw new Error('项目数据超出容量')
+  if (value.length > (kind === 'byte' ? 262144 : kind === 'word' ? MAX_ROM_WORDS : 32)) throw new Error('项目数据超出容量')
   for (const n of value) if (!Number.isInteger(n) || n < 0 || n > max) throw new Error(`项目 ${kind} 数据超出范围`)
   return value
 }

@@ -1,10 +1,13 @@
-/** Compact, immutable-by-API ROM. The owned Uint32Array never escapes. */
+export const MAX_ROM_WORDS = 262144
+
+/** Compact, immutable-by-API ROM. Allocate exactly the loaded word count;
+ * extending a program replaces the owned buffer without a fixed-size pad. */
 export class InstructionROM implements Iterable<number> {
   readonly [index: number]: number
   readonly length: number
   #words: Uint32Array
   constructor(words: ArrayLike<number>) {
-    if (!Number.isInteger(words.length) || words.length < 0 || words.length > 65536) throw new Error('无效 ROM 长度')
+    if (!Number.isInteger(words.length) || words.length < 0 || words.length > MAX_ROM_WORDS) throw new Error(`ROM 最多 ${MAX_ROM_WORDS} 个 32 位字（1 MiB）`)
     for (let i = 0; i < words.length; i++) if (!Number.isInteger(words[i]) || words[i] < 0 || words[i] > 0xffffffff) throw new Error('ROM 机器码必须为 32 位无符号整数')
     this.#words = Uint32Array.from(words)
     this.length = this.#words.length

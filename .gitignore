@@ -14,3 +14,6 @@ rtl/
 package/
 .local/
 .vite/
+# Local archived prototypes and superseded V2 debug evidence; recover from f218079.
+experiments/deepseek-chip-prototype/
+docs/validation/chip-v2/

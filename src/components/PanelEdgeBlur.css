@@ -1,0 +1,29 @@
+.panel-edge-blur-anchor {
+  display: block;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.panel-edge-blur {
+  position: fixed;
+  z-index: 80;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .18s ease;
+}
+
+.panel-edge-blur[data-visible="true"] { opacity: 1; }
+
+.panel-edge-blur__layer {
+  position: absolute;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-edge-blur { transition: none; }
+}

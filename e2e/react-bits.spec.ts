@@ -43,7 +43,7 @@ test('ASCII lifecycle and restrained radio keyboard motion preserve the CPU Canv
   })
   await page.goto('/')
   await expect(page.locator('.gradient-ascii-container')).toHaveAttribute('data-state', 'webgl')
-  await expect(page.getByText('RV32I / SILICON LIFE', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('scene-root')).toHaveAttribute('data-chip-ready', 'true')
   const cpu = await page.locator('.persistent-scene canvas').elementHandle()
   expect(await page.locator('.gradient-ascii-canvas').evaluate(canvas => {
     const el = canvas as HTMLCanvasElement, rect = el.getBoundingClientRect()
@@ -55,7 +55,7 @@ test('ASCII lifecycle and restrained radio keyboard motion preserve the CPU Canv
   expect(after - before).toBeGreaterThan(0)
   expect(after - before).toBeLessThanOrEqual(46) // Two draw calls per frame, <=20fps with timer tolerance.
   await page.screenshot({ path: '.local/sprint03-home-ascii.png' })
-  const mark = await page.locator('.die-mark').boundingBox()
+  const mark = await page.locator('.chip-hit-anchor').boundingBox()
   const cameraBefore = await page.getByTestId('scene-root').getAttribute('data-camera')
   expect(mark).not.toBeNull()
   // Decorated background passes drag/click through to the original scene anchor.
@@ -103,7 +103,7 @@ test('WebGL2 background unavailable leaves CPU usable', async ({ page }) => {
   })
   await page.goto('/')
   await expect(page.locator('.gradient-ascii-container')).toHaveAttribute('data-state', 'fallback')
-  await expect(page.getByText('RV32I / SILICON LIFE', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('scene-root')).toHaveAttribute('data-chip-ready', 'true')
   await page.getByRole('button', { name: '进入芯片' }).click()
   await page.getByLabel('传播速率').selectOption('2')
   await page.getByRole('button', { name: '运行', exact: true }).click()

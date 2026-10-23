@@ -1,0 +1,289 @@
+{
+  "date": "2026-10-22T11:20:03.080Z",
+  "baselineMain": "34b6f6dc430692e1ab18b65f65236315b92fcc1c",
+  "originalAsset": "69d81135c960874da8e54435fb584b6a1148fa3e",
+  "viewport": [
+    1440,
+    900
+  ],
+  "platform": "Windows / Node v24.15.0",
+  "playwright": "1.64.1",
+  "three": "0.182.0",
+  "method": "Sequential isolated Chromium sessions; 3s warmup, 5s each home/workbench/returned; previous-frame renderer.info and distinct R3F render timestamps. Baseline is origin/main archive with identical read-only render telemetry. No concurrent E2E during timing.",
+  "limits": [
+    "Frame intervals include CPU/GPU/OS; no independent GPU timer query measurement.",
+    "RTX 4060 results reach ~240Hz sampling ceiling; equal FPS does not imply equal GPU cost.",
+    "SwiftShader has slower high-detail home; this is preserved explicitly.",
+    "Isolated baseline CSS auto-scan context differs; compare JS artifacts, not CSS size."
+  ],
+  "measurements": {
+    "baseline": {
+      "gpu": {
+        "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+        "timerQueryAvailable": true
+      },
+      "summary": {
+        "home": {
+          "frames": 47,
+          "medianFrameMs": 107.99999999999966,
+          "p95FrameMs": 120.60000000000004,
+          "fps": 9.28711312107569,
+          "time": 8.1501,
+          "calls": 203,
+          "triangles": 7436,
+          "geometries": 203,
+          "textures": 1
+        },
+        "workbench": {
+          "frames": 359,
+          "medianFrameMs": 13.800000000001589,
+          "p95FrameMs": 16.299999999999315,
+          "fps": 71.58568286342732,
+          "time": 16.0381,
+          "calls": 61,
+          "triangles": 1578,
+          "geometries": 202,
+          "textures": 1
+        },
+        "returned": {
+          "frames": 52,
+          "medianFrameMs": 97.90000000000276,
+          "p95FrameMs": 103.89999999999944,
+          "fps": 10.294295749061401,
+          "time": 23.2042,
+          "calls": 203,
+          "triangles": 7436,
+          "geometries": 203,
+          "textures": 1
+        }
+      },
+      "errors": [],
+      "raw": ".local/chip-v2/baseline/benchmark.json"
+    },
+    "integrated": {
+      "gpu": {
+        "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+        "timerQueryAvailable": true
+      },
+      "summary": {
+        "home": {
+          "frames": 37,
+          "medianFrameMs": 133.30000000000018,
+          "p95FrameMs": 157.79999999999995,
+          "fps": 7.36075897603664,
+          "time": 8.2239,
+          "calls": 38,
+          "triangles": 41252,
+          "geometries": 36,
+          "textures": 5
+        },
+        "workbench": {
+          "frames": 326,
+          "medianFrameMs": 15.399999999999636,
+          "p95FrameMs": 17.999999999998906,
+          "fps": 65.00520041603329,
+          "time": 17.0612,
+          "calls": 61,
+          "triangles": 1578,
+          "geometries": 97,
+          "textures": 6
+        },
+        "returned": {
+          "frames": 41,
+          "medianFrameMs": 120.8999999999989,
+          "p95FrameMs": 140.7000000000025,
+          "fps": 8.165098287370633,
+          "time": 26.532,
+          "calls": 38,
+          "triangles": 41252,
+          "geometries": 97,
+          "textures": 6
+        }
+      },
+      "errors": [],
+      "raw": ".local/chip-v2/integrated/benchmark.json"
+    },
+    "baseline-hardware": {
+      "gpu": {
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "timerQueryAvailable": true
+      },
+      "summary": {
+        "home": {
+          "frames": 1198,
+          "medianFrameMs": 4.1999999999999815,
+          "p95FrameMs": 4.300000000000637,
+          "fps": 239.40478809576194,
+          "time": 8.0109,
+          "calls": 203,
+          "triangles": 7436,
+          "geometries": 203,
+          "textures": 1
+        },
+        "workbench": {
+          "frames": 1197,
+          "medianFrameMs": 4.199999999999093,
+          "p95FrameMs": 4.300000000000637,
+          "fps": 239.2,
+          "time": 15.1525,
+          "calls": 61,
+          "triangles": 1578,
+          "geometries": 202,
+          "textures": 1
+        },
+        "returned": {
+          "frames": 1198,
+          "medianFrameMs": 4.199999999997317,
+          "p95FrameMs": 4.300000000000637,
+          "fps": 239.40478809576192,
+          "time": 21.9189,
+          "calls": 203,
+          "triangles": 7436,
+          "geometries": 203,
+          "textures": 1
+        }
+      },
+      "errors": [],
+      "raw": ".local/chip-v2/baseline-hardware/benchmark.json"
+    },
+    "integrated-hardware": {
+      "gpu": {
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "timerQueryAvailable": true
+      },
+      "summary": {
+        "home": {
+          "frames": 1197,
+          "medianFrameMs": 4.1999999999999815,
+          "p95FrameMs": 4.300000000000637,
+          "fps": 239.2047840956819,
+          "time": 8.0115,
+          "calls": 38,
+          "triangles": 41252,
+          "geometries": 36,
+          "textures": 5
+        },
+        "workbench": {
+          "frames": 1194,
+          "medianFrameMs": 4.199999999999093,
+          "p95FrameMs": 4.300000000000637,
+          "fps": 238.6,
+          "time": 15.0947,
+          "calls": 61,
+          "triangles": 1578,
+          "geometries": 97,
+          "textures": 6
+        },
+        "returned": {
+          "frames": 1195,
+          "medianFrameMs": 4.199999999997317,
+          "p95FrameMs": 4.300000000000637,
+          "fps": 238.8047760955219,
+          "time": 21.8237,
+          "calls": 38,
+          "triangles": 41252,
+          "geometries": 97,
+          "textures": 6
+        }
+      },
+      "errors": [],
+      "raw": ".local/chip-v2/integrated-hardware/benchmark.json"
+    }
+  },
+  "bundles": {
+    "baseline": {
+      "files": [
+        {
+          "name": "CpuScene-CuLtlB8_.js",
+          "bytes": 13462,
+          "gzipBytes": 5481
+        },
+        {
+          "name": "GradientASCII-DyZMH6Y2.js",
+          "bytes": 15329,
+          "gzipBytes": 5786
+        },
+        {
+          "name": "index-CaFNRZzy.js",
+          "bytes": 211859,
+          "gzipBytes": 71058
+        },
+        {
+          "name": "parse.worker-DrN9_Ems.js",
+          "bytes": 7977,
+          "gzipBytes": 3474
+        },
+        {
+          "name": "three-CYgidwqT.js",
+          "bytes": 1168417,
+          "gzipBytes": 327408
+        }
+      ],
+      "totalBytes": 1417044,
+      "totalGzipBytes": 413207
+    },
+    "integrated": {
+      "files": [
+        {
+          "name": "CpuScene-C--_Orca.js",
+          "bytes": 40891,
+          "gzipBytes": 15212
+        },
+        {
+          "name": "GradientASCII-DsS3s_GX.js",
+          "bytes": 15329,
+          "gzipBytes": 5784
+        },
+        {
+          "name": "index-DocEUM7w.js",
+          "bytes": 211859,
+          "gzipBytes": 71055
+        },
+        {
+          "name": "parse.worker-DrN9_Ems.js",
+          "bytes": 7977,
+          "gzipBytes": 3474
+        },
+        {
+          "name": "three-C5hnxjCx.js",
+          "bytes": 1168657,
+          "gzipBytes": 327546
+        }
+      ],
+      "totalBytes": 1444713,
+      "totalGzipBytes": 423071
+    }
+  },
+  "productionSmoke": {
+    "production": true,
+    "inspectionOverrideIgnored": true,
+    "meshClick": true,
+    "canvasRetained": true,
+    "results": [
+      {
+        "program": "arithmetic",
+        "x3": "12",
+        "pc": "0x0000000c"
+      },
+      {
+        "program": "memory",
+        "x3": "42",
+        "pc": "0x00000010"
+      },
+      {
+        "program": "branch",
+        "x3": "42",
+        "pc": "0x00000014"
+      }
+    ],
+    "errors": []
+  },
+  "checks": {
+    "typecheck": "pass",
+    "unitTests": 113,
+    "unitFiles": 9,
+    "e2e": 24,
+    "e2eDuration": "3.2m",
+    "build": "pass"
+  }
+}

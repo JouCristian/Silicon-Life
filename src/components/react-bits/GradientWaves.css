@@ -1,0 +1,23 @@
+.gradient-waves-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+
+.gradient-waves-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.gradient-waves-container[data-state="fallback"] {
+  background:
+    radial-gradient(ellipse 82% 120% at 50% 118%, #2a557a77 0%, #16304b55 42%, transparent 74%),
+    linear-gradient(180deg, transparent 60%, #0b141f 100%);
+}
+
+

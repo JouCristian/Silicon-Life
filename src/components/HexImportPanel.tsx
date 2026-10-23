@@ -8,6 +8,7 @@ import { parseFileWorker } from '../io/workerClient'
 import { downloadText } from '../io/download'
 import { useLabView } from '../stores/useLabStore'
 import { HexFilePicker } from './HexFilePicker'
+import { GlideSelect } from './GlideSelect'
 
 export function HexImportPanel({ target }: { target: 'ROM' | 'RAM' }) {
   const { program, initialMemory, importProgram, setInitialMemory, cpu, running, playing, fastRunning, storageReady } = useLabView()
@@ -48,8 +49,20 @@ export function HexImportPanel({ target }: { target: 'ROM' | 'RAM' }) {
         if (token === generation.current) setFile({ name: selected.name, text })
       } catch (error) { if (token === generation.current) { setReadError((error as Error).message); setReading(false) } }
     }} />
-    {ram ? <div className="editor-fields"><label>数据单元<select aria-label="RAM 数据宽度" value={width} onChange={e => { setWidth(Number(e.target.value) as CellWidth); setMessage('') }}><option value={8}>8-bit 字节</option><option value={32}>32-bit 字（小端）</option></select></label><label>起始字节地址<input aria-label="RAM 装载地址" value={offset} onChange={e => { setOffset(e.target.value); setMessage('') }} /></label></div>
-      : <><label className="import-strategy">装载方式<select aria-label="ROM 装载方式" value={append ? 'append' : 'replace'} onChange={e => { setAppend(e.target.value === 'append'); setMessage('') }}><option value="replace">替换程序</option><option value="append">追加到末尾</option></select></label><label className="strict-import"><input type="checkbox" checked={strict} onChange={e => setStrict(e.target.checked)} />严格模式：拒绝未支持指令</label></>}
+    {ram ? <div className="editor-fields"><label>数据单元<GlideSelect
+      ariaLabel="RAM 数据宽度"
+      value={String(width)}
+      onChange={value => { setWidth(Number(value) as CellWidth); setMessage('') }}
+      options={[{ value: '8', label: '8-bit 字节' }, { value: '32', label: '32-bit 字（小端）' }]}
+      menuWidth={200}
+    /></label><label>起始字节地址<input aria-label="RAM 装载地址" value={offset} onChange={e => { setOffset(e.target.value); setMessage('') }} /></label></div>
+      : <><label className="import-strategy">装载方式<GlideSelect
+        ariaLabel="ROM 装载方式"
+        value={append ? 'append' : 'replace'}
+        onChange={value => { setAppend(value === 'append'); setMessage('') }}
+        options={[{ value: 'replace', label: '替换程序' }, { value: 'append', label: '追加到末尾' }]}
+        menuWidth={180}
+      /></label><label className="strict-import"><input type="checkbox" checked={strict} onChange={e => setStrict(e.target.checked)} />严格模式：拒绝未支持指令</label></>}
     {reading && <p role="status" className="field-help">正在解析，请稍候…</p>}
     {preview?.image && <div className="hex-preview" data-testid={`${target.toLowerCase()}-preview`}><p>{preview.image.format} · {width}-bit · {preview.image.values.length.toLocaleString()} 单元</p>{ram && <p>单元 0 → CPU 字节地址 {hex(preview.address ?? 0)}</p>}
       <ol>{preview.image.values.slice(0, 8).map((word, i) => <li key={i}><code>{hex(word)}</code><span>{ram ? `字节 ${(preview.address ?? 0) + i * width / 8}` : `${hex((append ? program.length * 4 : 0) + i * 4)} · ${instructionRow(preview.image.values, i).assembly}`}</span></li>)}</ol>

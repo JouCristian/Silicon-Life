@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 async function openLab(page: Page) {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/')
-  await expect(page.locator('.die-mark')).toBeVisible({ timeout: 20000 })
+  await expect(page.getByTestId('scene-root')).toHaveAttribute('data-chip-ready', 'true', { timeout: 20000 })
   await page.getByRole('button', { name: '进入芯片' }).click()
   await expect(page.getByText('Register File', { exact: true })).toBeVisible({ timeout: 20000 })
 }
@@ -16,7 +16,7 @@ test('viewport shell, independent scroll, separators and compact zoom layouts', 
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/')
-  await expect(page.locator('.die-mark')).toBeVisible({ timeout: 20000 })
+  await expect(page.getByTestId('scene-root')).toHaveAttribute('data-chip-ready', 'true', { timeout: 20000 })
   const header = await page.locator('.app-header').boundingBox()
   await page.getByRole('button', { name: '进入芯片' }).click()
   expect(await page.locator('.app-header').boundingBox()).toEqual(header)

@@ -1,5 +1,21 @@
 # AI 使用记录
 
+## 2026-10-23 · V3 冻结版 GitHub 集成收尾
+
+- 用户人工验收冻结 `f218079`，授权正常 Push、创建面向 main 的 V2+V3 PR 和检查实际 Actions；禁止自动 Merge、部署及新开发。
+- 核对 V3 继承 V2 的 `f882e2f` / `aae1c46`，且 Core、Store、IO、projects 和 topology.ts 与 main 一致；保留本地 annotated `v3-visual-freeze`，不推送 Tag。
+- 仅以独立整理提交取消跟踪历史原型/重复 vendor/V2 调试截图，保留磁盘原件和全部 Git 历史，归档链接指向冻结提交；`src/`、`e2e/`、`scripts/` 和依赖保持冻结版内容。
+- 为遵守不部署要求，按 Vercel 官方 Git Configuration 仅禁用当前 feature branch 的自动部署；保留 main 既有规则。没有连接 v0、创建新项目或主动部署。
+- GitHub CI 若失败，先读取实际步骤/日志并报告原因，不擅自修改冻结视觉或降低 CPU 测试期望。集成边界见 `docs/V3_GITHUB_INTEGRATION.md`。
+
+## 2026-10-22 · DeepSeek V2 模型集成
+
+- 用户提供 DeepSeek 制作并冻结的程序化几何、品牌纹理、180 根 QFP 针脚、机械装配关系与无状态拆解 API（`69d8113`）。用户规定只移植模型，不移植原型交互、DemoModules、演示线路或虚构信号；禁止本轮 Push、Merge、部署及 CPU Core 改动。
+- Codex 从最新 main 创建 `feat/integrate-chip-v2`，完整 cherry-pick 资产提交；原型原件保留。独立实现 typed 模型边界、R3F 生命周期、静态合批、针脚实例与顶点共享、轻量程序化 Matcap、零件独立淡出和原 reveal 驱动的离场。
+- 参考本地 impeccable 的产品指导和既有 PRODUCT/DESIGN；没有找到 swust-apple-keynote，不声称读取。没有调用子 agent、v0、外部图像生成或新增依赖。
+- 发现环境贴图错误压暗品牌后修正材质策略；完整 E2E 暴露慢帧跳过收合中段后，在原场景控制中限制空间呈现单帧推进，保留 CPU/Trace 的原有时间语义和测试基准。
+- 新增冻结原型独立几何基准、复装与资源释放单测、Canvas/视角/布局浏览器验证、原有全部程序与播放回归，保存实际截图和性能采样。细节见 `docs/CHIP_V2_INTEGRATION.md`。
+
 ## 2026-10-22 · Sprint 03.1
 
 - 用户贡献：明确验收问题与实用性优先级，要求 65536 条 ROM、10 项目、IndexedDB、完整 JSON 备份、统一文件控件和明确 RAM 模式；禁止 Push / Merge / 部署及 MMIO / ISA / 首页视觉扩展。

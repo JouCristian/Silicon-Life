@@ -5,6 +5,7 @@ import { exportProjectJSON, MAX_PROJECT_JSON_BYTES, restoreProject } from '../pr
 import { downloadText } from '../io/download'
 import { parseFileWorker } from '../io/workerClient'
 import { HexFilePicker } from './HexFilePicker'
+import { GlideSelect } from './GlideSelect'
 
 export function ProjectControls() {
   const { projects, activeProjectId, programId, loadProgram, createProject, renameProject, deleteProject,
@@ -18,10 +19,17 @@ export function ProjectControls() {
   const act = (action: () => void) => { try { action(); setError('') } catch (e) { setError((e as Error).message) } }
   return <section className="project-controls">
     <div className="section-title"><h2>当前项目</h2><span>{projects.length} / 10</span></div>
-    <select aria-label="教学程序" value={activeProjectId} disabled={!storageReady} onChange={e => act(() => loadProgram(e.target.value))}>
-      <optgroup label="内置示例 · 只读">{PROGRAMS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</optgroup>
-      <optgroup label="我的项目">{projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</optgroup>
-    </select>
+    <GlideSelect
+      ariaLabel="教学程序"
+      value={activeProjectId}
+      disabled={!storageReady}
+      onChange={value => act(() => loadProgram(value))}
+      menuWidth={280}
+      options={[
+        ...PROGRAMS.map(program => ({ value: program.id, label: program.name, group: '内置示例 · 只读' })),
+        ...projects.map(project => ({ value: project.id, label: project.name, group: '我的项目' })),
+      ]}
+    />
     <div className="project-save" role="status" data-testid="save-status" data-status={saveStatus}>
       {saveStatus === 'loading' ? '正在恢复项目…' : saveStatus === 'saving' ? '正在保存…' : saveStatus === 'saved' ? '已保存到本机' : saveStatus === 'error' ? '保存失败' : '尚未保存'}
     </div>

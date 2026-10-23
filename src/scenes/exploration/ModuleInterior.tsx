@@ -22,7 +22,7 @@ export function ModuleInterior({ id, progress, labelHost, anchor }: {
       root.current.scale.setScalar(.18 + .82 * p)
       root.current.traverse(object => {
         const material = (object as Mesh).material
-        if (material) for (const mat of Array.isArray(material) ? material : [material]) mat.opacity = opacity * (mat.userData.fade ?? 1)
+        if (material) for (const mat of Array.isArray(material) ? material : [material]) mat.opacity = opacity * (object.userData.fade ?? mat.userData.fade ?? 1)
       })
     }
     labels.current.forEach(label => { if (label) { label.style.opacity = String(smoothstep(.5, .9, p)); label.style.visibility = p > .35 ? 'visible' : 'hidden' } })
@@ -37,8 +37,8 @@ export function ModuleInterior({ id, progress, labelHost, anchor }: {
       </mesh>
       {model.wires.map((wire, i) => {
         const from = model.nodes.find(node => node.id === wire.from)!, to = model.nodes.find(node => node.id === wire.to)!
-        const color = MOTION.color[wire.kind ?? 'data']
-        return <Line key={`${wire.from}-${wire.to}-${i}`} points={[[...from.position, .015], [...to.position, .015]]} color={color} transparent depthTest={false} renderOrder={32} opacity={.8} lineWidth={wire.active ? 1.8 : 1} />
+        const color = wire.active ? MOTION.color[wire.kind ?? 'data'] : MOTION.color.inactive
+        return <Line key={`${wire.from}-${wire.to}-${i}`} points={[[...from.position, .015], [...to.position, .015]]} color={color} userData={{ fade: wire.active ? .85 : .18 }} transparent depthTest={false} renderOrder={32} lineWidth={wire.active ? 1.8 : 1} />
       })}
       {model.nodes.map((node, i) => <group key={node.id} position={[...node.position, .08]}>
         <mesh renderOrder={33}>

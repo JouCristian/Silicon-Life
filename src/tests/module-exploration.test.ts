@@ -16,9 +16,10 @@ beforeEach(() => {
 })
 
 describe('RTL-backed explorer read models', () => {
-  it('registers only implemented explorers against the existing eleven-module topology', () => {
+  it('registers all eleven explorers against the existing topology', () => {
     expect(MODULES).toHaveLength(11)
-    expect(MODULES.filter(m => isExplorable(m.id)).map(m => m.id).sort()).toEqual(['alu', 'pc', 'regfile'])
+    expect(MODULES.filter(m => isExplorable(m.id)).map(m => m.id).sort()).toEqual(MODULES.map(m => m.id).sort())
+    expect(Object.keys(EXPLORERS)).toHaveLength(11)
     const cpu = initialState()
     for (const definition of Object.values(EXPLORERS)) {
       const model = definition.build(cpu)
@@ -97,9 +98,9 @@ describe('scene focus and execution isolation', () => {
     useExplorationStore.getState().enter('pc'); usePeripheralStore.getState().remove('display')
     expect(useExplorationStore.getState().selected).toBe('pc')
   })
-  it('exits on home/project switch, ignores unsupported modules and cannot explore from home', () => {
+  it('exits on home/project switch and cannot explore from home', () => {
     useExplorationStore.getState().enter('alu'); expect(useExplorationStore.getState().selected).toBeNull()
-    useLabStore.getState().enter(); useExplorationStore.getState().enter('imem'); expect(useExplorationStore.getState().selected).toBeNull()
+    useLabStore.getState().enter(); useExplorationStore.getState().enter('imem'); expect(useExplorationStore.getState().selected).toBe('imem')
     useExplorationStore.getState().enter('pc'); useLabStore.getState().home(); expect(useExplorationStore.getState().selected).toBeNull()
     useLabStore.getState().enter(); useExplorationStore.getState().enter('alu'); useLabStore.getState().loadProgram('memory')
     expect(useExplorationStore.getState().selected).toBeNull()

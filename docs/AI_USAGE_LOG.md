@@ -1,5 +1,12 @@
 # AI 使用记录
 
+## 2026-10-23 · Sprint 07 全部模块探索
+
+- 先本地提交已验收 Sprint 06 为 `95dbeda`，再创建 `feat/sprint-07-all-module-exploration`。
+- 读取实际译码、立即数、分支、顶层 RTL 与 RV32I Core，复用已有探索框架补齐剩余 8 个模块。明确外部 ROM/RAM 与顶层教学分组，值来自 Trace 或只读前后快照，无重复执行或 MMIO/RAM 混用。
+- 仅扩展图模型/入口、活动路径灰显及简要文档；保留单 Canvas、镜头、MMIO、执行/播放/项目语义，不开发复杂视觉。
+- 类型检查、5 个相关文件 253 项测试通过，并进行本地浏览器基础预览；未运行完整 E2E，未 Push、Merge 或部署。
+
 ## 2026-10-23 · Sprint 06 元件内部探索
 
 - 确认 MMIO 3D 视觉 `674677f` 已提交、工作区干净，从该提交新建 `feat/sprint-06-module-exploration`，保留既有历史和功能。

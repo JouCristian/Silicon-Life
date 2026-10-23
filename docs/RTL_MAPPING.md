@@ -1,5 +1,11 @@
 # RTL → Web 映射
 
+## Sprint 07 · 全部模块探索
+
+补齐 Instruction Memory、Decoder、Imm Gen、MUX、Branch Unit、Data Memory、WB、Next PC。读取 decoder.v / imm_gen.v / branch_unit.v / cpu_top.v，显示现有 Trace 对应端口。MUX、WB、Next PC 是顶层组合逻辑的教学分组；imem/dmem 是顶层外部接口，ROM/RAM 本体属于宿主。数据内存视图区分普通 RAM 与独立 MMIO，非分支 taken / 非写入 WB 组合值不冒充架构提交。
+
+Core、Trace 执行语义与 RTL 文件未改；没有新造信号或 RTL 联合仿真结论。全部模块及边界见 [SPRINT_07_EXPLORATION](SPRINT_07_EXPLORATION.md)。
+
 ## Sprint 06 · 元件内部探索
 
 只读核对 pc.v、regfile.v、alu.v、cpu_defs.vh 与 cpu_top.v。内部图的数值来自现有 ExecutionTrace / CpuState：PC 的 D/Q/提交后 Q、寄存器堆 32 格与双读单写、ALU 的 a/b/op/result 与十个 RTL case。PC 的分支/跳转选择仍明确属于 cpu_top 外部上下文，ALU case 图不冒充综合后的门级/并行硬件。无 Trace 时不编造控制或运算结果。

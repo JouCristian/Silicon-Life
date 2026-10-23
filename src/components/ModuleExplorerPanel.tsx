@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { hex } from '../core/isa'
-import { EXPLORERS, type ExplorerId } from '../scenes/exploration/model'
+import { EXPLORERS } from '../scenes/exploration/model'
 import { useExplorationStore } from '../stores/useExplorationStore'
 import { useLabView } from '../stores/useLabStore'
 import './ModuleExplorerPanel.css'
+import { MODULES } from '../scenes/topology'
 
 export function ModuleExplorerPanel() {
   const { selected, enter, exit } = useExplorationStore()
@@ -19,8 +20,8 @@ export function ModuleExplorerPanel() {
   }, [selected, exit])
   return <section className="module-explorer" aria-label="CPU 元件内部探索" data-testid="module-explorer">
     <div className="section-title"><h2>{definition ? `${definition.title} 内部` : '元件内部探索'}</h2>{selected && <button className="text-button" onClick={exit}>返回主板 · Esc</button>}</div>
-    <div className="explorer-tabs">{(Object.keys(EXPLORERS) as ExplorerId[]).map(id => <button className="button subtle" key={id} aria-pressed={selected === id} onClick={() => enter(id)}>{EXPLORERS[id].title}</button>)}</div>
-    {!definition ? <p className="field-help">点击主板 PC、Register File 或 ALU 进入，也可使用上方按钮。进入时暂停执行，可继续单步；Esc 返回主板。</p> : <>
+    <div className="explorer-tabs">{MODULES.map(({ id }) => <button className="button subtle" key={id} aria-pressed={selected === id} onClick={() => enter(id)}>{EXPLORERS[id].title}</button>)}</div>
+    {!definition ? <p className="field-help">全部 11 个主板模块均可点击进入，也可使用上方按钮。进入时暂停执行，可继续单步；Esc 返回主板。</p> : <>
       <p className="field-help">{definition.source} · {trace ? `${stale ? '历史观察' : '执行快照'} #${trace.id} · PC ${hex(trace.before.pc)}` : '当前架构状态，执行后显示信号'}{trace && cpu.status === 'fault' && history.at(-1)?.after !== cpu ? ' · 当前已故障，以下为最后有效 Trace，非故障指令信号' : ''}</p>
       <p className="field-help">{model?.note}</p>
       {selected === 'regfile' && <p className="field-help">三维格内使用 8 位十六进制，省略 0x 前缀；完整数值也可在下方展开读取。</p>}

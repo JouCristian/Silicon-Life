@@ -1,8 +1,9 @@
 import { ALU_LABELS } from '../../core/cpu'
 import { hex } from '../../core/isa'
 import type { CpuState, ExecutionTrace, ModuleId } from '../../core/trace/types'
+import { branchModel, dataMemoryModel, decoderModel, immediateModel, instructionMemoryModel, muxModel, nextPcModel, writebackModel } from './remainingModels'
 
-export type ExplorerId = 'pc' | 'regfile' | 'alu'
+export type ExplorerId = ModuleId
 export interface ExploreNode {
   id: string; title: string; value: string; position: [number, number]; width?: number
   active?: boolean; kind?: 'data' | 'control' | 'writeback'
@@ -79,5 +80,13 @@ export const EXPLORERS = {
   pc: { title: 'PC', source: 'pc.v / cpu_top.v', build: pcModel },
   regfile: { title: 'Register File', source: 'regfile.v', build: registerModel },
   alu: { title: 'ALU', source: 'alu.v / cpu_defs.vh', build: aluModel },
-} satisfies Partial<Record<ModuleId, ExplorerDefinition>>
+  imem: { title: 'Instruction Memory', source: 'cpu_top.v imem 接口 / 宿主 ROM', build: instructionMemoryModel },
+  decoder: { title: 'Decoder', source: 'decoder.v / cpu_defs.vh', build: decoderModel },
+  imm: { title: 'Imm Gen', source: 'imm_gen.v / cpu_defs.vh', build: immediateModel },
+  mux: { title: 'MUX', source: 'cpu_top.v · ALU B 组合选择', build: muxModel },
+  branch: { title: 'Branch Unit', source: 'branch_unit.v / cpu_top.v', build: branchModel },
+  dmem: { title: 'Data Memory', source: 'cpu_top.v dmem 接口 / 宿主 RAM 与 MMIO', build: dataMemoryModel },
+  wb: { title: 'WB', source: 'cpu_top.v · 组合写回选择', build: writebackModel },
+  nextpc: { title: 'Next PC', source: 'cpu_top.v · 组合 PC 控制', build: nextPcModel },
+} satisfies Record<ModuleId, ExplorerDefinition>
 export function isExplorable(id: ModuleId): id is ExplorerId { return Object.hasOwn(EXPLORERS, id) }

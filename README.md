@@ -1,6 +1,6 @@
 # 芯生 / Silicon Life
 
-Sprint 06：工作台点击 PC、Register File、ALU 本体或右侧「元件内部探索」按钮，可推进查看 RTL 功能结构和真实 Trace 信号；「返回主板」/ Esc 平滑返回。进入时暂停执行，内部可继续单步；与 MMIO 显示器聚焦互斥，保留单 Canvas。当前是功能层级示意，非门级物理布局。操作与扩展接口见 [元件探索说明](docs/SPRINT_06_EXPLORATION.md)。
+Sprint 07：工作台全部 **11 个模块**均可点击内部探索，查看 RTL 功能结构与真实 Trace 信号；右侧按钮同样可进入，「返回主板」/ Esc 平滑返回。进入时暂停，可继续单步，与 MMIO 聚焦互斥并保留单 Canvas。图形是功能层级示意，外部 ROM/RAM 与 cpu_top 教学分组明确标注。见 [全部模块说明](docs/SPRINT_07_EXPLORATION.md)及 [Sprint 06 框架](docs/SPRINT_06_EXPLORATION.md)。
 
 DeepSeek V3 芯片视觉已在本分支完成：完整封装、电影化解构与可读的教学电路板共用既有单 CPU Canvas、连续转场和真实教学数据通路。实现、截图与验证见 [CHIP_V3_VISUAL](docs/CHIP_V3_VISUAL.md)；V2 集成记录见 [CHIP_V2_INTEGRATION](docs/CHIP_V2_INTEGRATION.md)。原型目录为冻结参考，其 UI、DemoModules 和相机控制不进入正式场景。
 

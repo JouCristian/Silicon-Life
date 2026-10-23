@@ -27,23 +27,42 @@ const LABEL_OFFSET: Partial<Record<ModuleId, [number, number, number]>> = {
   regfile: [.42, .02, .5],
 }
 
-export function ModuleBlock({ module, labelHost, value, reveal, timeline, epoch, inspection, reduced, open, exploration, onExplore }: {
+export function ModuleBlock({ module, labelHost, value, reveal, timeline, epoch, inspection, reduced, open, exploration, focus, onExplore }: {
   module: typeof MODULES[number]; labelHost: HTMLDivElement; value: string; reveal: SpringState; timeline: Timeline;
   epoch: number; inspection: boolean; reduced: boolean; open: boolean
-  exploration?: SpringState; onExplore?: () => void
+  exploration?: SpringState; focus?: SpringState; onExplore?: () => void
 }) {
   const material = useRef<MeshPhysicalMaterial>(null)
   const faceMaterial = useRef<MeshBasicMaterial>(null)
   const statusMaterial = useRef<MeshBasicMaterial>(null)
   const body = useRef<Group>(null)
   const label = useRef<HTMLDivElement>(null)
+  const flash = useRef(0), exploreTimer = useRef<number | undefined>(undefined), wasExploring = useRef(false), wasFocusOpen = useRef(false), labelPop = useRef(1)
   const geometry = useMemo(() => new RoundedBoxGeometry(module.width, 1.32, .6, 2, .065), [module.width])
   const faceTexture = useMemo(() => createModuleFaceTexture(module.id, MODULES.indexOf(module)), [module.id, module])
   useEffect(() => () => {
     geometry.dispose()
     faceTexture.dispose()
+    if (exploreTimer.current !== undefined) window.clearTimeout(exploreTimer.current)
   }, [geometry, faceTexture])
-  useFrame(() => {
+  const startExplore = () => {
+    if (!open || reveal.position <= .95 || !isExplorable(module.id)) return
+    flash.current = 1
+    if (exploreTimer.current !== undefined) window.clearTimeout(exploreTimer.current)
+    exploreTimer.current = window.setTimeout(() => onExplore?.(), 100)
+  }
+  useFrame((_, dt) => {
+    flash.current = Math.max(0, flash.current - dt * 2.6)
+    const exploring = (exploration?.position ?? 0) > .001
+    if (exploring && !wasExploring.current) flash.current = 1
+    wasExploring.current = exploring
+    // This runs for every block, not only the selected one, so all board
+    // labels pop back together when the focus pane finishes retracting.
+    const focusOpen = (focus?.position ?? 0) > .001
+    if (focusOpen && (focus?.position ?? 1) < .08) labelPop.current = 0
+    if (!focusOpen && wasFocusOpen.current) labelPop.current = 0
+    wasFocusOpen.current = focusOpen
+    labelPop.current = Math.min(1, labelPop.current + dt / .34)
     const time = presentationClock.read(epoch, inspection, timeline.duration)
     const outgoing = timeline.transfers.filter(t => t.from === module.id && time >= t.start)
     const incoming = timeline.transfers.filter(t => t.to === module.id && time >= t.end)
@@ -53,34 +72,45 @@ export function ModuleBlock({ module, labelHost, value, reveal, timeline, epoch,
     const response = incoming.reduce((n, t) => Math.max(n, impulse(time - t.end)), 0)
     const emission = outgoing.reduce((n, t) => Math.max(n, impulse(time - t.start)), 0)
     const active = !!signal
+    const focusAmount = smoothstep(.1, .8, focus?.position ?? 0)
+    const boardLight = 1 - .64 * focusAmount
     if (material.current) {
-      material.current.color.copy(active ? SURFACES[signal.kind] : BASE)
+      material.current.color.copy(active ? SURFACES[signal.kind] : BASE).multiplyScalar(.62 + .38 * boardLight)
       material.current.emissive.copy(active ? COLORS[signal.kind] : BASE)
-      material.current.emissiveIntensity = active ? .035 + response * .12 + emission * .06 : 0
+      material.current.emissiveIntensity = ((active ? .035 + response * .12 + emission * .06 : 0) + flash.current * .58) * boardLight
     }
-    if (faceMaterial.current) faceMaterial.current.color.copy(active ? COLORS[signal.kind] : FACE_BASE)
+    if (faceMaterial.current) {
+      faceMaterial.current.color.copy(active ? COLORS[signal.kind] : FACE_BASE).multiplyScalar(.55 + .45 * boardLight)
+      faceMaterial.current.opacity = .92 * (0.72 + .28 * boardLight)
+    }
     if (statusMaterial.current) {
       statusMaterial.current.color.copy(active ? COLORS[signal.kind] : STATUS_IDLE)
-      statusMaterial.current.opacity = active ? .62 + response * .35 + emission * .24 : .42
+      statusMaterial.current.opacity = (active ? .62 + response * .35 + emission * .24 : .42) * boardLight
     }
     if (body.current) {
-      const inside = Math.max(0, Math.min(1, exploration?.position ?? 0))
-      body.current.visible = inside < .995
-      body.current.position.z = (reduced ? 0 : response * .06) + inside * .8
+      // The source module remains on the board for the entire focus session.
+      // Only lighting, vignette and the carrier above it change; nothing pops out.
+      body.current.visible = true
+      body.current.position.z = reduced ? 0 : response * .06
       body.current.scale.setScalar(reduced ? 1 : 1 + response * .014)
-      if (material.current) { material.current.transparent = !!exploration; material.current.opacity = 1 - inside }
-      if (faceMaterial.current) faceMaterial.current.opacity = .92 * (1 - inside)
-      if (statusMaterial.current) statusMaterial.current.opacity *= 1 - inside
     }
     if (label.current) {
-      label.current.style.opacity = String(smoothstep(.58, .94, reveal.position))
+      const pop = exploring ? 1 : labelPop.current
+      const eased = 1 - Math.pow(1 - pop, 3)
+      const scale = .45 + .55 * eased + .05 * Math.sin(pop * Math.PI)
+      label.current.style.opacity = String(smoothstep(.58, .94, reveal.position) * Math.min(1, pop * 1.35))
+      label.current.style.transform = `translateY(-3px) scale(${scale.toFixed(3)})`
       label.current.style.color = active ? MOTION.color[signal.kind] : '#eef3f9'
       label.current.dataset.responding = active ? 'true' : 'false'
       label.current.classList.toggle('active', active)
     }
   })
   return <>
-    <group ref={body} onClick={event => { if (open && reveal.position > .95 && event.delta <= 4 && isExplorable(module.id)) { event.stopPropagation(); onExplore?.() } }}
+    <group ref={body} onClick={event => {
+      if (event.delta > 4) return
+      event.stopPropagation()
+      startExplore()
+    }}
       onPointerOver={event => { if (open && reveal.position > .95 && isExplorable(module.id)) { event.stopPropagation(); document.body.style.cursor = 'pointer' } }}
       onPointerOut={() => { document.body.style.cursor = '' }}>
       <mesh geometry={geometry} dispose={null}>

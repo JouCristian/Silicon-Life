@@ -1,7 +1,7 @@
 import { Component, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentRef, type ReactNode, type RefObject } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Html, OrbitControls } from '@react-three/drei'
-import { Group, PerspectiveCamera, Vector3, type WebGLRenderer } from 'three'
+import { AmbientLight, DirectionalLight, Group, HemisphereLight, PerspectiveCamera, PointLight, Vector3, type WebGLRenderer } from 'three'
 import { useMotionPreference } from '../motion/useMotionPreference'
 import { hex, i32 } from '../core/isa'
 import type { ModuleId } from '../core/trace/types'
@@ -50,6 +50,32 @@ function isSoftwareRenderer(renderer: WebGLRenderer): boolean {
   } catch {
     return false
   }
+}
+
+/** Stage lights. On focus the ambient rig falls away and a local rig on the
+ *  carrier takes over, like a display case spotlight rather than a black veil. */
+function StageLighting({ progress }: { progress: SpringState }) {
+  const ambient = useRef<AmbientLight>(null), hemisphere = useRef<HemisphereLight>(null)
+  const key = useRef<DirectionalLight>(null), fill = useRef<DirectionalLight>(null), front = useRef<DirectionalLight>(null)
+  const under = useRef<PointLight>(null)
+  useFrame(() => {
+    const p = Math.max(0, Math.min(1, progress.position))
+    const dim = smoothstep(.05, .8, p)
+    if (ambient.current) ambient.current.intensity = .18 - .14 * dim
+    if (hemisphere.current) hemisphere.current.intensity = .46 - .38 * dim
+    if (key.current) key.current.intensity = 1.8 - 1.5 * dim
+    if (fill.current) fill.current.intensity = 1.45 - 1.2 * dim
+    if (front.current) front.current.intensity = 1.0 - .82 * dim
+    if (under.current) under.current.intensity = 12 - 10.5 * dim
+  })
+  return <>
+    <ambientLight ref={ambient} intensity={.18} />
+    <hemisphereLight ref={hemisphere} args={['#acc9dd', '#07090c', .46]} />
+    <directionalLight ref={key} position={[7, -8, 13]} intensity={1.8} color="#f2f7ff" />
+    <directionalLight ref={fill} position={[-8, 7, 9]} intensity={1.45} color="#78b2e2" />
+    <directionalLight ref={front} position={[0, 3, 20]} intensity={1.0} color="#d8ecf8" />
+    <pointLight ref={under} position={[0, -3, 8]} intensity={12} distance={34} decay={2} color="#b6d6ef" />
+  </>
 }
 
 function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef: Anchor }) {
@@ -347,17 +373,12 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
 
   return <>
     <StudioEnvironment enabled={!softwareRenderer} />
-    <ambientLight intensity={.18} />
-    <hemisphereLight args={['#acc9dd', '#07090c', .46]} />
-    <directionalLight position={[7, -8, 13]} intensity={1.8} color="#f2f7ff" />
-    <directionalLight position={[-8, 7, 9]} intensity={1.45} color="#78b2e2" />
-    <directionalLight position={[0, 3, 20]} intensity={1.0} color="#d8ecf8" />
-    <pointLight position={[0, -3, 8]} intensity={12} distance={34} decay={2} color="#b6d6ef" />
+    <StageLighting progress={interiorProgress.current} />
     <group ref={spatial}><group ref={model}>
       <group ref={board}>
         <TeachingBoard />
         {WIRES.map(wire => <SignalFlow key={wire.id} wire={wire} transfer={timeline.transfers.find(t => t.id === wire.id)} timeline={timeline} epoch={playbackEpoch} inspection={inspection} reduced={reduced} />)}
-        {MODULES.map((module, i) => <group key={module.id} ref={el => { blocks.current[i] = el }}><ModuleBlock module={module} labelHost={labelHost} value={valueFor(module.id)} reveal={reveal.current} timeline={timeline} epoch={playbackEpoch} inspection={inspection} reduced={reduced} open={open} exploration={interiorId === module.id ? interiorProgress.current : undefined} onExplore={() => explore(module.id)} /></group>)}
+        {MODULES.map((module, i) => <group key={module.id} ref={el => { blocks.current[i] = el }}><ModuleBlock module={module} labelHost={labelHost} value={valueFor(module.id)} reveal={reveal.current} timeline={timeline} epoch={playbackEpoch} inspection={inspection} reduced={reduced} open={open} exploration={interiorId === module.id ? interiorProgress.current : undefined} focus={interiorProgress.current} onExplore={() => explore(module.id)} /></group>)}
         {interiorId && <ModuleInterior id={interiorId} progress={interiorProgress.current} labelHost={labelHost} anchor={interiorAnchor} />}
         <PeripheralDisplay screenAnchor={displayAnchor} />
       </group>
@@ -368,6 +389,11 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
     </group></group>
     <OrbitControls ref={controls} domElement={anchorRef.current ?? undefined} makeDefault enableDamping dampingFactor={.075} minDistance={3.2} maxDistance={44} minPolarAngle={.12} maxPolarAngle={Math.PI / 2.15} enableRotate={focusedPeripheral !== 'display'} enablePan={focusedPeripheral !== 'display'} enableZoom={focusedPeripheral !== 'display'} onStart={() => { autoView.current = false }} />
   </>
+}
+
+function FocusVignette() {
+  const active = useExplorationStore(state => !!state.selected)
+  return <div className={`focus-vignette ${active ? 'is-active' : ''}`} aria-hidden="true" />
 }
 
 class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -381,6 +407,6 @@ export default function CpuScene({ anchorRef }: { anchorRef: Anchor }) {
   return <SceneBoundary><Suspense fallback={<div className="scene-fallback">正在建立三维场景…</div>}><div className="scene-root" data-testid="scene-root">
     <Canvas eventSource={anchorRef} eventPrefix="client" camera={{ position: [10, -15, 23], up: [0, 0, 1], fov: 40 }} dpr={[1, 1.5]} gl={{ antialias: true, alpha: true }} aria-label="可旋转的三维 CPU 数据通路" fallback={<div className="scene-fallback">如设备无法显示 WebGL 场景，可继续使用 CPU 操作与信号面板。</div>}>
       {labelHost && <World labelHost={labelHost} anchorRef={anchorRef} />}
-    </Canvas><div ref={setLabelHost} className="scene-label-host" />
+    </Canvas><FocusVignette /><div ref={setLabelHost} className="scene-label-host" />
   </div></Suspense></SceneBoundary>
 }

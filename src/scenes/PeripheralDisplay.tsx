@@ -79,10 +79,12 @@ export function PeripheralDisplay({ screenAnchor }: { screenAnchor: RefObject<Gr
   const scanBeam = useRef<Mesh>(null), scanBeamMaterial = useRef<MeshBasicMaterial>(null)
   const scanVeil = useRef<Mesh>(null), scanVeilMaterial = useRef<MeshBasicMaterial>(null)
   const ghost = useRef<Mesh>(null), ghostMaterial = useRef<MeshBasicMaterial>(null)
+  const collapseCore = useRef<Mesh>(null), collapseMaterial = useRef<MeshBasicMaterial>(null)
   const pulse = useRef<Mesh>(null), cable = useRef<Group>(null)
   const progress = useRef(0)
   const tween = useRef({ from: 0, to: 0, elapsed: 0, active: false })
   const HologramDuration = 1.25
+  const removalNotified = useRef(false)
   const wasInstalled = useRef(installed)
   const lastWrites = useRef(display.writes), pulseAt = useRef(1)
   const latestDisplay = useRef(display), displayDirty = useRef(true)
@@ -161,7 +163,13 @@ export function PeripheralDisplay({ screenAnchor }: { screenAnchor: RefObject<Gr
     wasInstalled.current = installed
     const to = installed ? 1 : 0
     tween.current = { from: progress.current, to, elapsed: 0, active: progress.current !== to }
+    if (!installed) removalNotified.current = false
     if (!installed && previous) {
+      // Anticipation: a short outward impulse before the spring pulls the
+      // enclosure into the centre. The result is a soft "pop" that overshoots
+      // slightly, then snaps down into a point with visible spring rebound.
+      pivotScale.current.position = Math.max(1, pivotScale.current.position)
+      pivotScale.current.velocity = 5.4
       // Freeze the last real frame into a blurred spectral copy. The ghost then
       // contracts with the enclosure instead of the screen simply switching off.
       if (canvas && blurCanvas && blurTexture) {
@@ -190,7 +198,7 @@ export function PeripheralDisplay({ screenAnchor }: { screenAnchor: RefObject<Gr
     const anim = tween.current
     if (anim.active) {
       anim.elapsed += dt
-      const raw = Math.min(1, anim.elapsed / HologramDuration)
+      const raw = Math.min(1, anim.elapsed / (installed ? HologramDuration : .9))
       progress.current = anim.from + (anim.to - anim.from) * smootherstep(raw)
       if (raw >= 1) { progress.current = anim.to; anim.active = false }
     }
@@ -198,14 +206,36 @@ export function PeripheralDisplay({ screenAnchor }: { screenAnchor: RefObject<Gr
     const removal = 1 - p
     if (root.current) root.current.visible = p > .001
     if (pivot.current) {
-      const target = installed ? 1 : .08
-      if (installed && p < .02) {
+      if (!installed) {
+        // Pop outward first, then accelerate into the centre with a small
+        // damped rebound. Explicit shaping keeps the "q弹" readable even when
+        // the panel starts collapsing immediately.
+        const r = removal
+        const pop = .12 * Math.sin(Math.min(1, r / .2) * Math.PI)
+        const collapse = smoothstep(.2, .68, r)
+        const bounce = .06 * Math.sin(collapse * Math.PI * 2.4) * (1 - collapse)
+        pivotScale.current.position = Math.max(.02, 1 + pop - 1.02 * collapse + bounce)
+        pivotScale.current.velocity = 0
+      } else if (p < .02) {
         pivotScale.current.position = 1
         pivotScale.current.velocity = 0
+        removalNotified.current = false
       } else {
-        springStep(pivotScale.current, target, dt, 2.2)
+        springStep(pivotScale.current, 1, dt, 2.2)
       }
-      pivot.current.scale.setScalar(Math.max(.005, pivotScale.current.position))
+      pivot.current.scale.setScalar(Math.max(.004, pivotScale.current.position))
+    }
+    if (!installed && p <= .001 && !removalNotified.current) {
+      removalNotified.current = true
+      window.dispatchEvent(new CustomEvent('silicon:peripheral-removed', { detail: 'display' }))
+    }
+    if (collapseCore.current && collapseMaterial.current) {
+      const active = !installed && p < .32 && p > .001
+      collapseCore.current.visible = active
+      collapseCore.current.scale.setScalar(.9 + .48 * Math.sin(removal * Math.PI))
+      collapseMaterial.current.opacity = active
+        ? smoothstep(0, .14, removal) * (1 - smoothstep(.78, .96, removal)) * .95
+        : 0
     }
 
     // The solid body fades into the spectral copy in about half a second while
@@ -347,6 +377,10 @@ export function PeripheralDisplay({ screenAnchor }: { screenAnchor: RefObject<Gr
           <mesh ref={pulse} visible={false}><sphereGeometry args={[.085, 12, 12]} /><meshBasicMaterial color="#8bd5ff" toneMapped={false} /></mesh>
         </group>
       </group>
+      <mesh ref={collapseCore} position={[DECK[0], SCREEN[1], SCREEN[2] + .2]} renderOrder={14} visible={false}>
+        <sphereGeometry args={[.075, 16, 16]} />
+        <meshBasicMaterial ref={collapseMaterial} color="#c9f3ff" transparent opacity={0} depthTest={false} depthWrite={false} blending={AdditiveBlending} toneMapped={false} userData={{ noFade: true }} />
+      </mesh>
       <mesh ref={scanVeil} position={[DECK[0], SCREEN[1], SCREEN[2] + .1]} renderOrder={11} visible={false}>
         <planeGeometry args={[4.3, 6.7]} />
         <meshBasicMaterial ref={scanVeilMaterial} map={scanGrid} color="#63b8e8" transparent opacity={0} depthTest={false} depthWrite={false} blending={AdditiveBlending} toneMapped={false} userData={{ noFade: true }} />

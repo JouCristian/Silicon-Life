@@ -24,7 +24,7 @@ export function ModuleExplorerPanel() {
     {!definition ? <p className="field-help">全部 11 个主板模块均可点击进入，也可使用上方按钮。进入时暂停执行，可继续单步；Esc 返回主板。</p> : <>
       <p className="field-help">{definition.source} · {trace ? `${stale ? '历史观察' : '执行快照'} #${trace.id} · PC ${hex(trace.before.pc)}` : '当前架构状态，执行后显示信号'}{trace && cpu.status === 'fault' && history.at(-1)?.after !== cpu ? ' · 当前已故障，以下为最后有效 Trace，非故障指令信号' : ''}</p>
       <p className="field-help">{model?.note}</p>
-      {selected === 'regfile' && <p className="field-help">三维格内使用 8 位十六进制，省略 0x 前缀；完整数值也可在下方展开读取。</p>}
+      {selected === 'regfile' && <p className="field-help">三维格内每格为 32 个 bit 活动条；点击寄存器查看完整值与当前读写状态，下方可展开全部 32 个寄存器。</p>}
       <dl className="explorer-values">{model?.nodes.filter(node => selected !== 'regfile' || !/^x\d+$/.test(node.id)).map(node => <div key={node.id} data-active={!!node.active}><dt>{node.title}</dt><dd>{node.value || '未选择'}</dd></div>)}</dl>
       {selected === 'regfile' && trace && <p className="field-help">写后值：{trace.write.committed ? `x${trace.write.rd}=${hex(trace.after.registers[trace.write.rd])}` : '本条无有效寄存器写入'}。32 个寄存器在三维内部展开，当前提交后的完整值仍可在下方寄存器面板读取。</p>}
       {selected === 'regfile' && <details><summary>32 个寄存器 · {trace ? '提交前快照' : '当前值'}</summary><dl className="explorer-values">{model?.nodes.filter(node => /^x\d+$/.test(node.id)).map(node => <div key={node.id}><dt>{node.title}</dt><dd>{node.value}</dd></div>)}</dl></details>}

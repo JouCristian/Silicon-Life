@@ -19,7 +19,7 @@ const value = (n: number | undefined) => n === undefined ? unknown : hex(n)
 function pcModel(cpu: CpuState, trace?: ExecutionTrace): ModuleExploration {
   const s = trace?.signals
   return {
-    note: 'pc.v 内部仅为 32 位寄存器和同步复位。PC+4、分支/跳转选择与 Trap 保持来自 cpu_top；标为外部的逻辑在此作为输入上下文展示。',
+    note: 'pc.v 内部只有一个 32 位寄存器：clk 上升沿把 D=next_pc 写入 Q=pc；同步 reset 优先，把 Q 清零。PC+4、分支/跳转目标、外部选择与 Trap/fault 保持属于 cpu_top，在本视图中作为右侧外部上下文展示，不计入 pc.v。',
     nodes: [
       { id: 'pc4', title: '外部 PC+4', value: value(s?.pc_plus4), position: [-3.1, 1.2], active: !!s && !s.redirect },
       { id: 'target', title: '外部分支 / 跳转目标', value: value(s?.target), position: [-3.1, -.2], active: !!s?.redirect },
@@ -44,6 +44,7 @@ function aluModel(_cpu: CpuState, trace?: ExecutionTrace): ModuleExploration {
     { id: 'a', title: 'a [31:0]', value: value(s?.alu_a), position: [-3.3, 1.2], active: !!s },
     { id: 'b', title: 'b [31:0]', value: value(s?.alu_b), position: [-3.3, -.15], active: !!s },
     { id: 'op', title: 'op [3:0]', value: s ? `${s.alu_op} · ${ALU_LABELS[s.alu_op]}` : unknown, position: [-3.3, -1.5], active: !!s, kind: 'control' },
+    { id: 'shift', title: 'b[4:0] 移位量', value: s ? `${s.alu_b & 31} · ${(s.alu_b & 31).toString(2).padStart(5, '0')}` : unknown, position: [-3.3, -2.5], active: !!s && [2, 6, 7].includes(s.alu_op), kind: 'control' },
     ...ALU_LABELS.map((op, i): ExploreNode => ({ id: `case-${i}`, title: op, value: s?.alu_op === i ? '当前 case 路径' : '',
       position: [i % 2 ? 1 : -.65, 1.75 - Math.floor(i / 2) * .84], width: 1.4, active: s?.alu_op === i })),
     { id: 'result', title: 'result [31:0]', value: value(s?.alu_result), position: [3.3, .4], active: !!s },
@@ -52,7 +53,7 @@ function aluModel(_cpu: CpuState, trace?: ExecutionTrace): ModuleExploration {
     { from: 'a', to: `case-${s.alu_op}`, active: true }, { from: 'b', to: `case-${s.alu_op}`, active: true },
     { from: 'op', to: `case-${s.alu_op}`, active: true, kind: 'control' },
     { from: `case-${s.alu_op}`, to: 'result', active: true },
-  ] : [], note: 'alu.v 的 case(op) 功能路径示意，非门级网表。移位取 b[4:0]；SLT/SRA 按有符号数处理，SLTU/SRL 按无符号数处理。显示值直接来自 Trace，不重新计算运算结果。分支指令由独立 Branch Unit 比较。' }
+  ] : [], note: 'alu.v 是纯组合 case(op)：ADD/SUB 算术，XOR/OR/AND 逻辑，SLL/SRL/SRA 移位，SLT/SLTU 比较。十个 case 臂按功能分组；当前路径由 Trace.alu_op 选中。移位量只取 b[4:0]；SLT 与 SRA 按有符号处理，SLTU 与 SRL 按无符号处理。显示值直接来自 Trace，不重新计算。ALU 无 clk、无内部寄存器；结果去向是 WB / DMEM / Next PC。' }
 }
 function registerModel(cpu: CpuState, trace?: ExecutionTrace): ModuleExploration {
   const s = trace?.signals, before = trace?.before.registers ?? cpu.registers
@@ -63,6 +64,13 @@ function registerModel(cpu: CpuState, trace?: ExecutionTrace): ModuleExploration
     active: i === rs1 || i === rs2 || !!trace?.write.committed && i === rd,
     kind: trace?.write.committed && i === rd ? 'writeback' : 'data' }))
   nodes.push(
+    { id: 'word', title: 'instr[31:0]', value: trace ? hex(trace.word) : unknown, position: [-3.2, 1.1], width: 2.6, active: !!s },
+    { id: 'rs1', title: 'rs1 [4:0] · 读地址 A', value: s && rs1 !== undefined ? `x${rs1} · ${rs1.toString(2).padStart(5, '0')}` : unknown, position: [-3.2, 2.1], width: 2.6, active: !!s, kind: 'control' },
+    { id: 'rs2', title: 'rs2 [4:0] · 读地址 B', value: s && rs2 !== undefined ? `x${rs2} · ${rs2.toString(2).padStart(5, '0')}` : unknown, position: [3.2, 2.1], width: 2.6, active: !!s, kind: 'control' },
+    { id: 'rd', title: 'rd [4:0] · 写地址', value: s && rd !== undefined ? `x${rd} · ${rd.toString(2).padStart(5, '0')}` : unknown, position: [0, -2.2], width: 2.6, active: !!s, kind: 'control' },
+    { id: 'rd-data', title: 'rd_data = wb_data', value: s ? hex(s.wb_data) : unknown, position: [2.8, -2.2], width: 2.6, active: !!s, kind: 'writeback' },
+    { id: 'reg-write', title: 'reg_write · Decoder 请求', value: s ? `${s.reg_write}` : unknown, position: [-3.2, -2.2], width: 2.6, active: !!s, kind: 'control' },
+    { id: 'we', title: 'we 端口 = rf_we', value: s ? `${s.rf_we}` : unknown, position: [-3.2, -3.2], width: 2.6, active: !!s, kind: 'control' },
     { id: 'read-a', title: '异步读 A · rs1', value: s ? `x${rs1} → ${hex(s.rs1_data)}` : unknown, position: [-2.1, 2.35], width: 3.2, active: !!s },
     { id: 'read-b', title: '异步读 B · rs2', value: s ? `x${rs2} → ${hex(s.rs2_data)}` : unknown, position: [2.1, 2.35], width: 3.2, active: !!s },
     { id: 'write', title: '同步写 · clk↑ / we / rd', value: s ? `we=${s.rf_we} · x${rd} ← ${hex(s.wb_data)}${trace!.write.committed ? ' · 已提交' : rd === 0 && s.rf_we ? ' · x0 丢弃' : ' · 未写入'}` : unknown,
@@ -71,7 +79,7 @@ function registerModel(cpu: CpuState, trace?: ExecutionTrace): ModuleExploration
   return { nodes, wires: trace ? [
     { from: `x${rs1}`, to: 'read-a', active: true }, { from: `x${rs2}`, to: 'read-b', active: true },
     ...(trace.write.committed ? [{ from: 'write', to: `x${rd}`, active: true, kind: 'writeback' as const }] : []),
-  ] : [], note: 'regfile.v：32×32 位寄存器，双异步读、单同步写，无转发。格内值是指令提交前快照；写口展示该指令真实提交，提交后值见右侧信号。rs1/rs2 为原始指令端口，即使指令未使用该操作数也如实显示；x0 恒为 0。' }
+  ] : [], note: 'regfile.v：32×32 位寄存器，双异步组合读、单同步写，无转发。每个寄存器格内是 32 个 bit 活动条，点击寄存器可查看完整当前值（指令提交前快照）与本指令读写状态。写口展示该指令真实提交，下一条单步后阵列值更新。rs1/rs2 为原始指令端口，即使指令未使用该操作数也如实显示；x0 恒为 0。regfile 的 we 端口就是 cpu_top 的 rf_we；顶层门控 reg_write && !reset && !trap && !fault 在模块外完成，regfile 内部没有第二级门控。' }
 }
 
 /** ModuleId is the existing eleven-module topology contract. Add one definition

@@ -19,6 +19,7 @@ import { JellyRadio } from './components/react-bits/JellyRadio'
 import { GlideSelect } from './components/GlideSelect'
 import { PanelEdgeBlur } from './components/PanelEdgeBlur'
 import { PeripheralDock } from './components/PeripheralDock'
+import { usePeripheralStore } from './stores/usePeripheralStore'
 
 const CpuScene = lazy(() => import('./scenes/CpuScene'))
 const GradientASCII = lazy(() => import('./components/react-bits/GradientASCII'))
@@ -32,7 +33,40 @@ export default function App() {
   const headingRef = useRef<HTMLHeadingElement>(null)
   const homeButtonRef = useRef<HTMLButtonElement>(null)
   const previousScene = useRef(scene)
+  const displayInstalled = usePeripheralStore(state => state.installed.includes('display'))
+  const removePeripheral = usePeripheralStore(state => state.remove)
+  const pendingHome = useRef(false)
+  const homeFallback = useRef<number | null>(null)
   usePlaybackDriver(reduced)
+  useEffect(() => {
+    const onDisplayCollapsed = (event: Event) => {
+      if (!pendingHome.current || (event as CustomEvent<string>).detail !== 'display') return
+      pendingHome.current = false
+      if (homeFallback.current !== null) { window.clearTimeout(homeFallback.current); homeFallback.current = null }
+      home()
+    }
+    window.addEventListener('silicon:peripheral-removed', onDisplayCollapsed)
+    return () => {
+      window.removeEventListener('silicon:peripheral-removed', onDisplayCollapsed)
+      if (homeFallback.current !== null) window.clearTimeout(homeFallback.current)
+    }
+  }, [home])
+  const requestHome = () => {
+    if (pendingHome.current) return
+    if (displayInstalled && open) {
+      pendingHome.current = true
+      removePeripheral('display')
+      homeFallback.current = window.setTimeout(() => {
+        if (!pendingHome.current) return
+        pendingHome.current = false
+        homeFallback.current = null
+        home()
+      }, 1500)
+      return
+    }
+    if (displayInstalled) removePeripheral('display')
+    home()
+  }
   useEffect(() => {
     if (previousScene.current !== scene) {
       (scene === 'workbench' ? headingRef.current : homeButtonRef.current)?.focus({ preventScroll: true })
@@ -82,8 +116,8 @@ export default function App() {
     </AnimatePresence>
     <div className="persistent-scene"><Suspense fallback={<div className="scene-fallback">正在加载三维引擎…</div>}><CpuScene anchorRef={anchorRef} /></Suspense></div>
     <header className="app-header">
-      <button className="brand" onClick={home} aria-label="芯生首页"><span className="brand-mark">芯</span><span>芯生<span className="brand-en">SILICON LIFE</span></span></button>
-      <nav aria-label="主导航"><button className={!open ? 'current' : ''} onClick={home}>探索芯片</button><button className={open ? 'current' : ''} onClick={enter}>CPU 工作台</button></nav>
+      <button className="brand" onClick={requestHome} aria-label="芯生首页"><span className="brand-mark">芯</span><span>芯生<span className="brand-en">SILICON LIFE</span></span></button>
+      <nav aria-label="主导航"><button className={!open ? 'current' : ''} onClick={requestHome}>探索芯片</button><button className={open ? 'current' : ''} onClick={enter}>CPU 工作台</button></nav>
       <div className="header-meta"><span className="tiny-dot" />RV32I<span className="header-divider" />单周期架构</div>
     </header>
 

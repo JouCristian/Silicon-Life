@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 /* Frozen prototype UI is reference material, not production utility content. */
 @source not "../../experiments";
 
@@ -381,3 +381,13 @@ html { scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: #526174
 .display-surface:focus-visible { outline: 1px solid #8ecbff; outline-offset: 3px; }
 .scene-root[data-peripheral-focus="display"] .module-label { opacity: 0 !important; transition: opacity .35s ease; }
 .scene-root[data-peripheral-focus="display"] .scene-label-host { pointer-events: none; }
+
+/* Focus mode: a soft optical vignette, not a veil. The stage lighting does the
+   real work; this only pulls the outer edges away without hiding the board. */
+.focus-vignette {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: 0;
+  transition: opacity .55s cubic-bezier(.22, 1, .36, 1);
+  background: radial-gradient(ellipse 54% 62% at 50% 44%, transparent 0 28%, rgb(2 6 10 / .12) 36%, rgb(2 6 10 / .42) 58%, rgb(2 6 10 / .66) 82%, rgb(2 6 10 / .76) 100%);
+}
+.focus-vignette.is-active { opacity: 1; }
+.scene-label-host { z-index: 2; }

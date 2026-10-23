@@ -32,7 +32,7 @@ export function SignalFlow({ wire, transfer, timeline, epoch, inspection, reduce
     const geometry = new BufferGeometry().setFromPoints(samples)
     geometry.setDrawRange(0, 0)
     return new ThreeLine(geometry, new LineBasicMaterial({
-      color, transparent: true, opacity: .9, depthTest: false, blending: AdditiveBlending,
+      color, transparent: true, opacity: .9, depthTest: true, depthWrite: false, blending: AdditiveBlending,
     }))
   }), [samples, color])
   useEffect(() => () => { for (const beam of beams) { beam.geometry.dispose(); beam.material.dispose() } }, [beams])
@@ -67,7 +67,7 @@ export function SignalFlow({ wire, transfer, timeline, epoch, inspection, reduce
   return <>
     <Line points={wire.points.map(p => [p[0], p[1], .1] as [number, number, number])} color="#8ba3b3" lineWidth={1.45} transparent opacity={.82} dashed={wire.control} dashSize={.12} gapSize={.08} />
     {beams.map((beam, index) => <primitive key={index} object={beam} />)}
-    <mesh ref={halo} visible={false} renderOrder={3}><sphereGeometry args={[.16, 12, 8]} /><meshBasicMaterial color={color} transparent opacity={.22} depthTest={false} depthWrite={false} blending={AdditiveBlending} /></mesh>
-    <mesh ref={head} visible={false} renderOrder={4}><sphereGeometry args={[.09, 12, 8]} /><meshBasicMaterial color={color} transparent depthTest={false} depthWrite={false} blending={AdditiveBlending} /></mesh>
+    <mesh ref={halo} visible={false} renderOrder={3}><sphereGeometry args={[.16, 12, 8]} /><meshBasicMaterial color={color} transparent opacity={.22} depthTest depthWrite={false} blending={AdditiveBlending} /></mesh>
+    <mesh ref={head} visible={false} renderOrder={4}><sphereGeometry args={[.09, 12, 8]} /><meshBasicMaterial color={color} transparent depthTest depthWrite={false} blending={AdditiveBlending} /></mesh>
   </>
 }

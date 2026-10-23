@@ -1,7 +1,7 @@
 import { Component, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentRef, type ReactNode, type RefObject } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Html, OrbitControls } from '@react-three/drei'
-import { Group, PerspectiveCamera, Vector3, type WebGLRenderer } from 'three'
+import { AmbientLight, DirectionalLight, Group, HemisphereLight, PerspectiveCamera, PointLight, Vector3, type WebGLRenderer } from 'three'
 import { useMotionPreference } from '../motion/useMotionPreference'
 import { hex, i32 } from '../core/isa'
 import type { ModuleId } from '../core/trace/types'
@@ -17,6 +17,13 @@ import { StudioEnvironment } from './chip/StudioEnvironment'
 import { cameraPathEase, cinematicEase } from './chip/cinematic'
 import type { IntegratedChip } from './chip/model'
 import { TeachingBoard } from './teaching/TeachingBoard'
+import { PeripheralDisplay } from './PeripheralDisplay'
+import { ALU_LABELS } from '../core/cpu'
+import { usePeripheralStore } from '../stores/usePeripheralStore'
+import { useExplorationStore } from '../stores/useExplorationStore'
+import { type ExplorerId } from './exploration/model'
+import { ModuleInterior } from './exploration/ModuleInterior'
+import { explorationDistance } from './exploration/camera'
 
 type Anchor = RefObject<HTMLDivElement | null>
 const SPRING = (): SpringState => ({ position: 0, velocity: 0 })
@@ -45,8 +52,48 @@ function isSoftwareRenderer(renderer: WebGLRenderer): boolean {
   }
 }
 
+/** Stage lights. On focus the ambient rig falls away and a local rig on the
+ *  carrier takes over, like a display case spotlight rather than a black veil. */
+function StageLighting({ progress }: { progress: SpringState }) {
+  const ambient = useRef<AmbientLight>(null), hemisphere = useRef<HemisphereLight>(null)
+  const key = useRef<DirectionalLight>(null), fill = useRef<DirectionalLight>(null), front = useRef<DirectionalLight>(null)
+  const under = useRef<PointLight>(null)
+  useFrame(() => {
+    const p = Math.max(0, Math.min(1, progress.position))
+    const dim = smoothstep(.05, .8, p)
+    if (ambient.current) ambient.current.intensity = .18 - .14 * dim
+    if (hemisphere.current) hemisphere.current.intensity = .46 - .38 * dim
+    if (key.current) key.current.intensity = 1.8 - 1.5 * dim
+    if (fill.current) fill.current.intensity = 1.45 - 1.2 * dim
+    if (front.current) front.current.intensity = 1.0 - .82 * dim
+    if (under.current) under.current.intensity = 12 - 10.5 * dim
+  })
+  return <>
+    <ambientLight ref={ambient} intensity={.18} />
+    <hemisphereLight ref={hemisphere} args={['#acc9dd', '#07090c', .46]} />
+    <directionalLight ref={key} position={[7, -8, 13]} intensity={1.8} color="#f2f7ff" />
+    <directionalLight ref={fill} position={[-8, 7, 9]} intensity={1.45} color="#78b2e2" />
+    <directionalLight ref={front} position={[0, 3, 20]} intensity={1.0} color="#d8ecf8" />
+    <pointLight ref={under} position={[0, -3, 8]} intensity={12} distance={34} decay={2} color="#b6d6ef" />
+  </>
+}
+
 function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef: Anchor }) {
   const { scene, enter, trace, phase, viewVersion, cpu, playbackEpoch, inspection, playing } = useLabView()
+  const peripheralInstalled = usePeripheralStore(state => state.installed.includes('display'))
+  const focusedPeripheral = usePeripheralStore(state => state.focused)
+  const focusPeripheral = usePeripheralStore(state => state.focus)
+  const explored = useExplorationStore(state => state.selected)
+  const explore = useExplorationStore(state => state.enter)
+  const exitExploration = useExplorationStore(state => state.exit)
+  const [interiorId, setInteriorId] = useState<ExplorerId | null>(null)
+  const interiorProgress = useRef(SPRING())
+  const interiorAnchor = useRef<Group>(null)
+  const returnEye = useMemo(() => new Vector3(), [])
+  const returnTarget = useMemo(() => new Vector3(), [])
+  const interiorTarget = useMemo(() => new Vector3(), [])
+  const interiorEye = useMemo(() => new Vector3(), [])
+  const lastCameraOwner = useRef<'display' | 'module' | null>(null)
   const reduced = useMotionPreference()
   const { camera, size, gl } = useThree()
   const softwareRenderer = useMemo(() => isSoftwareRenderer(gl), [gl])
@@ -56,6 +103,9 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
   const chip = useRef<IntegratedChip | null>(null)
   const blocks = useRef<(Group | null)[]>([])
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null)
+  const displayAnchor = useRef<Group>(null)
+  const focusTarget = useMemo(() => new Vector3(), [])
+  const focusEye = useMemo(() => new Vector3(0, -.12, 8.2), [])
   const reveal = useRef(SPRING())
   const revealTween = useRef({ from: 0, to: 0, elapsed: 0, duration: 0, active: false })
   const anchorX = useRef(SPRING()), anchorY = useRef(SPRING()), scale = useRef({ position: 1, velocity: 0 })
@@ -103,6 +153,24 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
     return () => { observer.disconnect(); window.removeEventListener('scroll', followScroll); window.removeEventListener('resize', measure) }
   }, [anchorRef, scene, size.width, size.height])
   useEffect(() => { autoView.current = true; document.body.style.cursor = ''; return () => { document.body.style.cursor = '' } }, [scene, viewVersion])
+  useEffect(() => {
+    autoView.current = focusedPeripheral !== 'display'
+  }, [focusedPeripheral])
+  useEffect(() => {
+    if (!open && focusedPeripheral) focusPeripheral(null)
+  }, [open, focusedPeripheral, focusPeripheral])
+  useLayoutEffect(() => {
+    if (!explored) return
+    if (interiorProgress.current.position < .001) {
+      returnEye.copy(lastCameraOwner.current === 'display' ? cameraPlane : camera.position)
+      returnTarget.copy(lastCameraOwner.current === 'display' ? origin : controls.current?.target ?? origin)
+    }
+    setInteriorId(explored)
+  }, [explored, camera, cameraPlane, origin, returnEye, returnTarget])
+  useEffect(() => {
+    exitExploration()
+    returnEye.copy(cameraPlane); returnTarget.copy(origin)
+  }, [scene, viewVersion, exitExploration, cameraPlane, origin, returnEye, returnTarget])
 
   useFrame(({ clock }, dt) => {
     // The first render delta may include a long frame BEFORE the new target was
@@ -152,7 +220,45 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
       }
     }
     const t = tState.position
-    if (autoView.current) {
+    const interior = interiorProgress.current
+    if (reduced) { interior.position = open && explored ? 1 : 0; interior.velocity = 0 }
+    else springStep(interior, open && explored ? 1 : 0, dt, 7)
+    const interiorVisible = interiorId && interior.position > .001
+    labelHost.dataset.exploring = interiorVisible ? interiorId : ''
+    labelHost.parentElement!.dataset.exploring = explored ?? ''
+    labelHost.parentElement!.dataset.exploreProgress = interior.position.toFixed(4)
+    const displayFocus = open && peripheralInstalled && focusedPeripheral === 'display' && displayAnchor.current
+    if (!open) lastCameraOwner.current = null
+    if (controls.current) controls.current.enabled = !displayFocus && !explored && !interiorVisible && lastCameraOwner.current !== 'module'
+    if (displayFocus) {
+      displayAnchor.current!.getWorldPosition(focusTarget)
+      cameraPoint.copy(focusTarget).add(focusEye)
+      const follow = reduced ? 1 : 1 - Math.exp(-CAMERA_RESPONSE * dt)
+      camera.position.lerp(cameraPoint, follow)
+      controls.current?.target.lerp(focusTarget, follow)
+      controls.current?.update()
+      autoView.current = false
+      lastCameraOwner.current = 'display'
+    } else if (open && (interiorVisible || explored)) {
+      interiorAnchor.current?.getWorldPosition(interiorTarget)
+      const distance = explorationDistance(scale.current.position, anchor.current.width, anchor.current.height, size.height)
+      interiorEye.copy(interiorTarget)
+      interiorEye.y -= distance * .14; interiorEye.z += distance
+      const blend = clamp01(interior.position), follow = reduced ? 1 : 1 - Math.exp(-CAMERA_RESPONSE * dt)
+      cameraPoint.copy(returnEye).lerp(interiorEye, blend)
+      focusTarget.copy(returnTarget).lerp(interiorTarget, blend)
+      camera.position.lerp(cameraPoint, follow)
+      controls.current?.target.lerp(focusTarget, follow)
+      controls.current?.update()
+      autoView.current = false
+      lastCameraOwner.current = 'module'
+    } else if (open && lastCameraOwner.current === 'module') {
+      const follow = reduced ? 1 : 1 - Math.exp(-CAMERA_RESPONSE * dt)
+      camera.position.lerp(returnEye, follow)
+      controls.current?.target.lerp(returnTarget, follow)
+      controls.current?.update()
+      if (camera.position.distanceTo(returnEye) < .003 && (controls.current?.target.distanceTo(returnTarget) ?? 0) < .003) lastCameraOwner.current = null
+    } else if (autoView.current) {
       // The camera target travels on a later, gently overshooting Bezier path;
       // the camera itself still follows with frame-rate-independent damping.
       const pathT = cameraPathEase(clamp01((t - .14) / .8))
@@ -164,13 +270,13 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
       camera.position.lerp(cameraPoint, follow)
       controls.current?.target.lerp(origin, follow)
       controls.current?.update()
-      if (t >= .9999 && camera.position.distanceTo(cameraPlane) < .003 && (controls.current?.target.length() ?? 0) < .001) autoView.current = false
+      if (t >= .9999 && camera.position.distanceTo(cameraPlane) < .003 && (controls.current?.target.length() ?? 0) < .001) { autoView.current = false; lastCameraOwner.current = null }
     }
     camera.updateMatrixWorld()
     const distance = cameraHome.length() * (1 - t) + cameraPlane.length() * t
     const halfHeight = distance * Math.tan(40 * Math.PI / 360)
     const ppu = size.height / (2 * halfHeight)
-    const targetScale = Math.min(anchor.current.width / (open ? 18.3 : 10.5), anchor.current.height / (open ? 11.75 : 10.4)) / ppu
+    const targetScale = Math.min(anchor.current.width / (open ? (peripheralInstalled ? 23.4 : 18.3) : 10.5), anchor.current.height / (open ? (peripheralInstalled ? 12.35 : 11.75) : 10.4)) / ppu
     if (!initialized.current || reduced) {
       anchorX.current.position = anchor.current.x; anchorY.current.position = anchor.current.y; scale.current.position = targetScale
       initialized.current = true
@@ -191,6 +297,8 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
       root.dataset.renderQuality = softwareRenderer ? 'compat' : 'pbr'
       root.dataset.compactLabels = String(anchor.current.height < 280)
       root.dataset.mediumLabels = String(anchor.current.height >= 280 && anchor.current.height < 360)
+      root.dataset.peripheralInstalled = String(peripheralInstalled)
+      root.dataset.peripheralFocus = focusedPeripheral === 'display' ? 'display' : ''
       root.dataset.renderTime = clock.elapsedTime.toFixed(4)
       if (import.meta.env.DEV) {
         root.dataset.drawCalls = String(gl.info.render.calls)
@@ -253,37 +361,39 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
       case 'imem': return hex(s.imem_rdata)
       case 'decoder': return `B_imm=${s.alu_b_imm} · WE=${s.reg_write}`
       case 'imm': return `${i32(s.imm)}`
-      case 'regfile': return phase === 'writeback' && s.reg_write ? `x${trace.write.rd} ← ${i32(s.wb_data)}` : `x${trace.instruction.rs1} → ${i32(s.rs1_data)}`
+      case 'regfile': return phase === 'writeback' && s.reg_write ? trace.write.committed ? `x${trace.write.rd} ← ${i32(s.wb_data)}` : 'x0 · 丢弃写回' : `x${trace.word >>> 15 & 31} → ${i32(s.rs1_data)}`
       case 'mux': return `${i32(s.alu_b)}`
-      case 'alu': return `${i32(s.alu_a)} + ${i32(s.alu_b)} = ${i32(s.alu_result)}`
+      case 'alu': return `${ALU_LABELS[s.alu_op]}(${i32(s.alu_a)}, ${i32(s.alu_b)}) = ${i32(s.alu_result)}`
       case 'wb': return `${i32(s.wb_data)}`
-      case 'dmem': return trace.memoryAccess ? `${trace.memoryAccess.kind === 'load' ? 'R' : 'W'} [${s.dmem_addr}] = ${i32(trace.memoryAccess.data)}` : '未访问'
-      case 'branch': return s.branch ? `${i32(s.rs1_data)} = ${i32(s.rs2_data)} ? ${s.branch_taken}` : '未参与'
+      case 'dmem': return trace.memoryAccess?.space === 'mmio' ? 'MMIO → 显示设备（RAM 未写入）' : trace.memoryAccess ? `${trace.memoryAccess.kind === 'load' ? 'R' : 'W'} [${s.dmem_addr}] = ${i32(trace.memoryAccess.data)}` : '未访问'
+      case 'branch': return s.branch ? `${trace.instruction.op}(${hex(s.rs1_data)}, ${hex(s.rs2_data)}) → ${s.branch_taken}` : '未参与'
       case 'nextpc': return hex(s.next_pc)
     }
   }
 
   return <>
     <StudioEnvironment enabled={!softwareRenderer} />
-    <ambientLight intensity={.18} />
-    <hemisphereLight args={['#acc9dd', '#07090c', .46]} />
-    <directionalLight position={[7, -8, 13]} intensity={1.8} color="#f2f7ff" />
-    <directionalLight position={[-8, 7, 9]} intensity={1.45} color="#78b2e2" />
-    <directionalLight position={[0, 3, 20]} intensity={1.0} color="#d8ecf8" />
-    <pointLight position={[0, -3, 8]} intensity={12} distance={34} decay={2} color="#b6d6ef" />
+    <StageLighting progress={interiorProgress.current} />
     <group ref={spatial}><group ref={model}>
       <group ref={board}>
         <TeachingBoard />
         {WIRES.map(wire => <SignalFlow key={wire.id} wire={wire} transfer={timeline.transfers.find(t => t.id === wire.id)} timeline={timeline} epoch={playbackEpoch} inspection={inspection} reduced={reduced} />)}
-        {MODULES.map((module, i) => <group key={module.id} ref={el => { blocks.current[i] = el }}><ModuleBlock module={module} labelHost={labelHost} value={valueFor(module.id)} reveal={reveal.current} timeline={timeline} epoch={playbackEpoch} inspection={inspection} reduced={reduced} open={open} /></group>)}
+        {MODULES.map((module, i) => <group key={module.id} ref={el => { blocks.current[i] = el }}><ModuleBlock module={module} labelHost={labelHost} value={valueFor(module.id)} reveal={reveal.current} timeline={timeline} epoch={playbackEpoch} inspection={inspection} reduced={reduced} open={open} exploration={interiorId === module.id ? interiorProgress.current : undefined} focus={interiorProgress.current} onExplore={() => explore(module.id)} /></group>)}
+        {interiorId && <ModuleInterior id={interiorId} progress={interiorProgress.current} labelHost={labelHost} anchor={interiorAnchor} />}
+        <PeripheralDisplay screenAnchor={displayAnchor} />
       </group>
       <group onClick={event => { event.stopPropagation(); if (!open && event.delta <= 4) enter() }} onPointerOver={() => { if (!open) document.body.style.cursor = 'pointer' }} onPointerOut={() => { document.body.style.cursor = '' }}>
         <ChipAsset model={chip} host={labelHost.parentElement!} materialMode={materialMode} />
       </group>
       <Html portal={{ current: labelHost }} center position={[0, 0, .6]} zIndexRange={[8, 0]} style={{ pointerEvents: 'none' }}><span className="chip-hit-anchor" aria-label="芯生 V3 芯片" style={{ display: 'block', width: 1, height: 1 }} /></Html>
     </group></group>
-    <OrbitControls ref={controls} domElement={anchorRef.current ?? undefined} makeDefault enableDamping dampingFactor={.075} minDistance={18} maxDistance={44} minPolarAngle={.12} maxPolarAngle={Math.PI / 2.15} onStart={() => { autoView.current = false }} />
+    <OrbitControls ref={controls} domElement={anchorRef.current ?? undefined} makeDefault enableDamping dampingFactor={.075} minDistance={3.2} maxDistance={44} minPolarAngle={.12} maxPolarAngle={Math.PI / 2.15} enableRotate={focusedPeripheral !== 'display'} enablePan={focusedPeripheral !== 'display'} enableZoom={focusedPeripheral !== 'display'} onStart={() => { autoView.current = false }} />
   </>
+}
+
+function FocusVignette() {
+  const active = useExplorationStore(state => !!state.selected)
+  return <div className={`focus-vignette ${active ? 'is-active' : ''}`} aria-hidden="true" />
 }
 
 class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -297,6 +407,6 @@ export default function CpuScene({ anchorRef }: { anchorRef: Anchor }) {
   return <SceneBoundary><Suspense fallback={<div className="scene-fallback">正在建立三维场景…</div>}><div className="scene-root" data-testid="scene-root">
     <Canvas eventSource={anchorRef} eventPrefix="client" camera={{ position: [10, -15, 23], up: [0, 0, 1], fov: 40 }} dpr={[1, 1.5]} gl={{ antialias: true, alpha: true }} aria-label="可旋转的三维 CPU 数据通路" fallback={<div className="scene-fallback">如设备无法显示 WebGL 场景，可继续使用 CPU 操作与信号面板。</div>}>
       {labelHost && <World labelHost={labelHost} anchorRef={anchorRef} />}
-    </Canvas><div ref={setLabelHost} className="scene-label-host" />
+    </Canvas><FocusVignette /><div ref={setLabelHost} className="scene-label-host" />
   </div></Suspense></SceneBoundary>
 }

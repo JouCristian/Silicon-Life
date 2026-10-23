@@ -19,7 +19,9 @@ describe('RV32I ISA', () => {
   it('rejects malformed register fields and unsupported opcodes', () => {
     expect(() => encode({ op: 'ADD', rd: 32, rs1: 0, rs2: 0 })).toThrow()
     expect(() => encode({ op: 'ADD', rd: 1, rs1: -.5, rs2: 0 })).toThrow()
-    for (const word of [0x402081b3, 0x022081b3, 0x00001083, 0xffffffff]) expect(() => decode(word)).toThrow()
+    for (const word of [0x022081b3, 0x402091b3, 0x02001013, 0xffffffff]) expect(() => decode(word)).toThrow()
+    expect(decode(0x402081b3)).toEqual({ op: 'SUB', rd: 3, rs1: 1, rs2: 2 })
+    expect(decode(0x00001083)).toEqual({ op: 'LH', rd: 1, rs1: 0, imm: 0 })
   })
 })
 

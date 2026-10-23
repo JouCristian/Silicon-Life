@@ -1,4 +1,38 @@
-# RTL → Web 映射（Sprint 02）
+# RTL → Web 映射
+
+## Sprint 07 · 全部模块探索
+
+补齐 Instruction Memory、Decoder、Imm Gen、MUX、Branch Unit、Data Memory、WB、Next PC。读取 decoder.v / imm_gen.v / branch_unit.v / cpu_top.v，显示现有 Trace 对应端口。MUX、WB、Next PC 是顶层组合逻辑的教学分组；imem/dmem 是顶层外部接口，ROM/RAM 本体属于宿主。数据内存视图区分普通 RAM 与独立 MMIO，非分支 taken / 非写入 WB 组合值不冒充架构提交。
+
+Core、Trace 执行语义与 RTL 文件未改；没有新造信号或 RTL 联合仿真结论。全部模块及边界见 [SPRINT_07_EXPLORATION](SPRINT_07_EXPLORATION.md)。
+
+## Sprint 06 · 元件内部探索
+
+只读核对 pc.v、regfile.v、alu.v、cpu_defs.vh 与 cpu_top.v。内部图的数值来自现有 ExecutionTrace / CpuState：PC 的 D/Q/提交后 Q、寄存器堆 32 格与双读单写、ALU 的 a/b/op/result 与十个 RTL case。PC 的分支/跳转选择仍明确属于 cpu_top 外部上下文，ALU case 图不冒充综合后的门级/并行硬件。无 Trace 时不编造控制或运算结果。
+
+此轮只有只读展示与会话镜头状态，无新 RTL 信号、无 CPU/Trace 执行语义修改或 RTL 联合仿真结论。完整边界与扩展接口见 [SPRINT_06_EXPLORATION](SPRINT_06_EXPLORATION.md)。
+
+## Sprint 05.5 · 显示 MMIO
+
+新增宿主 Logisim RGB 设备：`0x20000000…0x2003ffff`、256×256、低 24 位 RGB888、对齐 SW 写像素即更新。依据为用户原 `minirv.circ` 的 LSU 比较器、VGA_WE 门控、X/Y/Data 分线器及 RGB Video 组件，并以原反汇编和 ARTEMIS 实际访问验证；完整证据与限制见 [MMIO_DISPLAY](MMIO_DISPLAY.md)。
+
+`cpu_top.v` 的 `dmem_addr/dmem_wdata/dmem_we/dmem_wstrb` 仍是 CPU 外部总线，没有新增或编造 RTL 信号。`CpuState.display`、`memoryAccess.space` 和 `mmioWrite` 是软件外设/教学元数据，不是 RTL 中已存在的显示控制器。MMIO 不修改 RAM，也不沿冻结教学板 RAM 连线代演；独立面板显示真实设备输出。原 RTL / Logisim 文件只读未改，未做外设 RTL 联合仿真。
+
+以下章节中“MMIO 未实现”是对应历史 Sprint 的记录，当前新增的显示 SW 协议以本节为准；其余外设、显示读回及窄写未实现。
+
+## Sprint 05 当前状态（2026-10-23）
+
+软件已扩展至 40 条 RV32I 基础整数指令。重新只读读取下表全部 8 个 RTL 文件，其 SHA-256 与本文历史基线一致；RTL 原件本身已覆盖全部相应 ALU、分支、跳转、字节/半字访存和系统停止控制，因此本轮没有修改 FPGA 工程。`iverilog -g2012 -I rtl/cpu -s cpu_top ...` 语法编译通过；无 Testbench 联合仿真或等价验证。
+
+- ALU_ADD/SUB/SLL/SLT/SLTU/XOR/SRL/SRA/OR/AND 编码分别为 0…9；IMM_I/S/B/U/J=0…4；SRC_RS1/PC/ZERO=0/1/2；WB_ALU/MEM/PC4=0/1/2。
+- MEM_BYTE/HALF/WORD=0/1/2，load_unsigned 与 byte lane strobes 按 decoder / cpu_top 实现；所有提交前异常保留原状态。
+- jump、jalr、illegal、system_trap、system_cause、fault/fault_cause、trap/trap_cause 均是实际 RTL 信号。成功快照采样正常组合值；系统停止快照含该边沿后的 Trap 锁存值。复位周期、后续 halted 时钟不逐周期模拟。
+- ECALL cause=11、EBREAK cause=3，非退休停止；FENCE 为单核有序模型 NOP。无 CSR、异常向量或 OS。宿主越界仍单独表达，不捏造外部错误线。
+- 软件完整执行不等于教学板完整网表：ALU A 的 PC/零源、PC4 写回、JALR 目标、跳转专用控制线未新增几何，缺项在 Trace 明示，完整信号值可观察。
+
+指令表、验收程序和适用边界见 [SPRINT_05_RV32I](SPRINT_05_RV32I.md)。**以下 Sprint 02 / 03 内容保留为历史覆盖范围，不能当作当前 ISA 限制。**
+
+## Sprint 02 历史映射
 
 核对日期：2026-10-22，来源 `rtl/cpu/`，全部只读。Sprint 02 重新读取顶层、译码、宏、立即数和分支单元；沿用 Sprint 01 对 PC、寄存器堆、ALU 的已核对实现。
 

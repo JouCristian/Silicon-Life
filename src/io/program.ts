@@ -1,7 +1,7 @@
-import { assembly, decode, hex, u32 } from '../core/isa'
-import { InstructionROM, type ProgramWords } from '../core/rom'
+import { assembly, decode, hex, isBranch, u32 } from '../core/isa'
+import { InstructionROM, MAX_ROM_WORDS, type ProgramWords } from '../core/rom'
 
-export const MAX_PROGRAM_WORDS = 65536
+export const MAX_PROGRAM_WORDS = MAX_ROM_WORDS
 export interface ProgramIssue { readonly index: number; readonly word: number; readonly reason: string }
 export class ProgramValidationError extends Error {
   constructor(readonly issues: readonly ProgramIssue[]) {
@@ -32,7 +32,7 @@ export function instructionRow(words: ArrayLike<number>, index: number) {
   const word = words[index], address = index * 4
   try {
     const instruction = decode(word)
-    const target = instruction.op === 'BEQ' ? u32(address + instruction.imm) : undefined
+    const target = (isBranch(instruction.op) || instruction.op === 'JAL') && 'imm' in instruction ? u32(address + instruction.imm) : undefined
     return { index, address, word, instruction, assembly: assembly(instruction), error: '', target,
       targetValid: target === undefined || target % 4 === 0 && target < words.length * 4 }
   } catch (error) {

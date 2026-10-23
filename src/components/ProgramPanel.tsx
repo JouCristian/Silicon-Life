@@ -37,8 +37,9 @@ export function ProgramPanel() {
     <ProjectControls />
     {projectNotice && <p className="field-help" role="status">{projectNotice}</p>}
     <div className="section-title rom-heading"><h2>指令 ROM</h2><span>{program.length.toLocaleString()} / {MAX_PROGRAM_WORDS.toLocaleString()} 条</span></div>
-    <p className="field-help rom-capacity">{(program.length * 4 / 1024).toFixed(2)} KiB / 256 KiB · {projects.find(p => p.id === activeProjectId)?.name ?? preset?.name}</p>
-    {!!unsupported && <p className="error" role="status">当前程序包含 {unsupported} 条暂不支持的机器指令，运行到该处会安全停止。</p>}
+    <p className="field-help rom-capacity">{(program.length * 4 / 1024).toFixed(2)} KiB / {MAX_PROGRAM_WORDS * 4 / 1024} KiB · {projects.find(p => p.id === activeProjectId)?.name ?? preset?.name}</p>
+    {unsupported === undefined && <p className="field-help" role="status">机器码已载入，正在检查当前 CPU 的指令支持情况…</p>}
+    {!!unsupported && <p className="error" role="status">HEX 加载与指令支持是独立检查：当前 ROM 保留全部机器码，其中 {unsupported.toLocaleString()} 个字不能作为当前 CPU 支持的指令执行（也可能是数据或填充），运行到该处会安全停止，不代表文件加载失败。</p>}
     <form className="pc-jump" onSubmit={e => { e.preventDefault(); act(() => {
       const address = parseValue(jump, 32)
       if (address % 4 || address / 4 >= program.length) throw new Error('请输入程序范围内、4 字节对齐的 PC 地址')

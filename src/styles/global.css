@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 /* Frozen prototype UI is reference material, not production utility content. */
 @source not "../../experiments";
 
@@ -369,3 +369,25 @@ html { scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: #526174
 .scene-root[data-medium-labels="true"] .module-label b { font-size: 10.5px; }
 .scene-root[data-medium-labels="true"] .module-label span { display: none; }
 .scene-root[data-medium-labels="true"] .module-label code { font-size: 9px; margin-top: 3px; }
+
+.scene-toolbar-actions { display: flex; align-items: center; gap: 10px; }
+.display-panel { margin-bottom: 18px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+.display-heading { margin-bottom: 7px; }
+.display-actions { display: flex; align-items: center; justify-content: flex-end; gap: 13px; margin-bottom: 9px; }
+.display-actions .text-button { padding: 3px 0; font-size: 9px; }
+.display-surface { display: block; width: 100%; max-width: 256px; padding: 0; border: 1px solid rgb(147 183 216 / .2); background: #000; cursor: zoom-in; box-shadow: 0 8px 26px rgb(0 0 0 / .2); }
+.display-surface canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+.display-surface:hover { border-color: rgb(137 201 255 / .55); }
+.display-surface:focus-visible { outline: 1px solid #8ecbff; outline-offset: 3px; }
+.scene-root[data-peripheral-focus="display"] .module-label { opacity: 0 !important; transition: opacity .35s ease; }
+.scene-root[data-peripheral-focus="display"] .scene-label-host { pointer-events: none; }
+
+/* Focus mode: a soft optical vignette, not a veil. The stage lighting does the
+   real work; this only pulls the outer edges away without hiding the board. */
+.focus-vignette {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: 0;
+  transition: opacity .55s cubic-bezier(.22, 1, .36, 1);
+  background: radial-gradient(ellipse 54% 62% at 50% 44%, transparent 0 28%, rgb(2 6 10 / .12) 36%, rgb(2 6 10 / .42) 58%, rgb(2 6 10 / .66) 82%, rgb(2 6 10 / .76) 100%);
+}
+.focus-vignette.is-active { opacity: 1; }
+.scene-label-host { z-index: 2; }

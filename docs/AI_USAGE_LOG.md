@@ -1,5 +1,34 @@
 # AI 使用记录
 
+## 2026-10-23 · Sprint 07 全部模块探索
+
+- 先本地提交已验收 Sprint 06 为 `95dbeda`，再创建 `feat/sprint-07-all-module-exploration`。
+- 读取实际译码、立即数、分支、顶层 RTL 与 RV32I Core，复用已有探索框架补齐剩余 8 个模块。明确外部 ROM/RAM 与顶层教学分组，值来自 Trace 或只读前后快照，无重复执行或 MMIO/RAM 混用。
+- 仅扩展图模型/入口、活动路径灰显及简要文档；保留单 Canvas、镜头、MMIO、执行/播放/项目语义，不开发复杂视觉。
+- 类型检查、5 个相关文件 253 项测试通过，并进行本地浏览器基础预览；未运行完整 E2E，未 Push、Merge 或部署。
+
+## 2026-10-23 · Sprint 06 元件内部探索
+
+- 确认 MMIO 3D 视觉 `674677f` 已提交、工作区干净，从该提交新建 `feat/sprint-06-module-exploration`，保留既有历史和功能。
+- 读取实际 PC / RF / ALU / cpu_top / 控制宏，复用 Trace 创建纯只读内部模型与可扩展注册表。内部示意不冒充门级布局，不将 PC 外部分支逻辑伪称内部；CPU Core、拓扑与 MMIO 执行语义未改。
+- 使用本地 impeccable 的 product 指导和既有设计变量，仅实现基础可用的剖面、信号文字、返回/Esc、减弱动画和 MMIO 聚焦互斥；未进行视觉重设计或新建 Canvas/OrbitControls。
+- 类型检查及 4 个相关文件 183 项测试通过，进行本地 Chrome 基础预览；未运行完整 E2E。没有 Push、Merge 或部署。
+
+## 2026-10-23 · Sprint 05.5 显示设备
+
+- 先本地提交已验收的统一镜像功能为 `b85419b`，新建 `feat/sprint-05-5-mmio-display`。
+- 只读分析原 `minirv.circ`、`vga.txt`、两个图像转换脚本及 `rtl/cpu/cpu_top.v`，确认 256×256 RGB888 与 `0x20000000…0x2003ffff` 的 SW 像素协议；没有凭空添加同步寄存器或改动用户工程。
+- 实现独立不可变页共享 framebuffer、真实 MMIO 总线与设备 Trace、简单 2D 显示面板；暂停回放不重复提交，复位清屏。未改冻结 V3 几何、拓扑、相机或材质，仅修正 MMIO 时的 RAM 标签说明。
+- ARTEMIS 实际执行 623497 条到自身 halt 入口，65536 次 SW 覆盖整帧，与镜像原图逐字节/hash 一致。6 个相关文件 200 项测试通过，类型检查通过；本地 Chrome 预览验证实际像素写入，无完整 E2E。
+- 仅支持显示对齐 SW，其他外设、读回/窄写和硬件显示控制器未实现。未 Push、Merge 或部署。
+
+## 2026-10-23 · 1 MiB RAM 与统一镜像导入
+
+- 在 `feat/unified-memory-image` 扩容 RAM 分页、HEX 字节单元、项目校验及 JSON 备份（8 MiB）；schema 保持 1。统一导入通过一次 Store 提交替换 ROM / 初始 RAM 并复位，保留独立导入、初始寄存器及项目身份。未修改 CPU 执行语义或 V3 视觉。
+- 相关 6 个文件共 119 项测试及类型检查通过；真实 ARTEMIS 原件 142272 字完整装入，项目记录与 JSON 往返的全部 ROM / RAM 校验一致，栈 `0x93000` 的 SW/LW 通过。
+- 实际原程序退休 747 条后，在 PC `0x1520` 写入 `0x20000000` 时因 MMIO 未实现而停止；没有扩展或别名映射高地址。运行 RAM 不改写 ROM，尚不支持自修改代码。
+- 未运行完整 E2E，未 Push、Merge、部署或改动外部原件；本地验收入口为 `http://127.0.0.1:5180/`。
+
 ## 2026-10-23 · V3 冻结版 GitHub 集成收尾
 
 - 用户人工验收冻结 `f218079`，授权正常 Push、创建面向 main 的 V2+V3 PR 和检查实际 Actions；禁止自动 Merge、部署及新开发。
@@ -69,3 +98,18 @@
 
 - 用户另行授权 Push、创建面向 main 的 PR 和修复远程 CI，明确禁止 Merge、Force Push 和 Sprint 03。已推送 feat/sprint-02 并创建 PR #1。
 - 忽略本地 .vite 依赖缓存，保留文件。读取真实 Actions 日志后定位 1.8 秒固定采样窗口在云端仅收集 10 帧的失败；改为在 10 秒上限内满足时长和至少 16 个不同渲染时间戳，保留连续性基准，增加 CI 帧记录上传。没有改动 CPU 或产品视觉行为。
+
+## 2026-10-23 · V3 CI 专项排查
+
+- 读取真实 PR #4 Actions 日志及失败 artifact；使用 impeccable 的性能检查规范，没有重新设计视觉。
+- 原代码四个相关 E2E 在本机全部通过。两次有限修复尝试分别为 3/4、2/4；捕获首次显露帧空洞和候选异步编译 pageerror，遵照用户两次上限停止。
+- 失败补丁、帧数据与上下文归档于忽略目录 .local/v3-ci-investigation/；已回退所有运行时与测试候选。没有放宽 timeout、跳过测试或修改 CPU 期望。
+- 只提交 docs/V3_CI_INVESTIGATION.md 和此贡献记录；未 Push、Merge、部署或移动冻结 Tag。完整测试矩阵未运行，不宣称修复完成。
+
+## 2026-10-23 · Sprint 05 RV32I
+
+- 用户验收的 Logisim v3 HEX / 1MiB ROM 修改先提交为 4e176a5，确认工作区干净后新建 feat/sprint-05-rv32i。
+- Codex 只读核对 rtl/cpu 的 8 个原件及控制编码，SHA-256 与历史基线一致。现有 RTL 已含 RV32I，未修改 FPGA 源码；Icarus 语法编译通过，没有 Testbench 联合仿真或等价结论。
+- 补齐 40 条基础整数指令编码/译码/执行、字节/半字内存、跳转和系统停止快照；保持单条架构提交与回放隔离。缺少几何的路径明确标注，不沿不相关连线制造数据流；V3 几何、相机、动画参数未改。
+- 使用 40 条独立机器码向量、BigInt ALU 参考及 3 个真实小程序验证。类型检查和最终 9 个相关测试文件共 232 项通过，未运行完整 E2E。提供 examples/sprint05/*.hex 供人工验收。
+- FENCE 为单核有序屏障空操作；ECALL/EBREAK 分别 cause=11/3，非退休停止。未实现 CSR、OS、MMIO 或 M/A/C 等扩展。没有 Push、Merge、部署或移动冻结 Tag。

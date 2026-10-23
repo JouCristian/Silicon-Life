@@ -7,6 +7,8 @@ import { EXECUTION_LIMITS } from './stores/useLabStore'
 import { ProgramPanel } from './components/ProgramPanel'
 import { RegisterPanel } from './components/RegisterPanel'
 import { MemoryPanel } from './components/MemoryPanel'
+import { DisplayPanel } from './components/DisplayPanel'
+import { ModuleExplorerPanel, ExplorerBackButton } from './components/ModuleExplorerPanel'
 import { TracePanel } from './components/TracePanel'
 import { useLabView } from './stores/useLabStore'
 import { ScenePresence } from './components/ScenePresence'
@@ -16,6 +18,8 @@ import { WorkbenchLayout } from './components/WorkbenchLayout'
 import { JellyRadio } from './components/react-bits/JellyRadio'
 import { GlideSelect } from './components/GlideSelect'
 import { PanelEdgeBlur } from './components/PanelEdgeBlur'
+import { PeripheralDock } from './components/PeripheralDock'
+import { usePeripheralStore } from './stores/usePeripheralStore'
 
 const CpuScene = lazy(() => import('./scenes/CpuScene'))
 const GradientASCII = lazy(() => import('./components/react-bits/GradientASCII'))
@@ -29,7 +33,40 @@ export default function App() {
   const headingRef = useRef<HTMLHeadingElement>(null)
   const homeButtonRef = useRef<HTMLButtonElement>(null)
   const previousScene = useRef(scene)
+  const displayInstalled = usePeripheralStore(state => state.installed.includes('display'))
+  const removePeripheral = usePeripheralStore(state => state.remove)
+  const pendingHome = useRef(false)
+  const homeFallback = useRef<number | null>(null)
   usePlaybackDriver(reduced)
+  useEffect(() => {
+    const onDisplayCollapsed = (event: Event) => {
+      if (!pendingHome.current || (event as CustomEvent<string>).detail !== 'display') return
+      pendingHome.current = false
+      if (homeFallback.current !== null) { window.clearTimeout(homeFallback.current); homeFallback.current = null }
+      home()
+    }
+    window.addEventListener('silicon:peripheral-removed', onDisplayCollapsed)
+    return () => {
+      window.removeEventListener('silicon:peripheral-removed', onDisplayCollapsed)
+      if (homeFallback.current !== null) window.clearTimeout(homeFallback.current)
+    }
+  }, [home])
+  const requestHome = () => {
+    if (pendingHome.current) return
+    if (displayInstalled && open) {
+      pendingHome.current = true
+      removePeripheral('display')
+      homeFallback.current = window.setTimeout(() => {
+        if (!pendingHome.current) return
+        pendingHome.current = false
+        homeFallback.current = null
+        home()
+      }, 1500)
+      return
+    }
+    if (displayInstalled) removePeripheral('display')
+    home()
+  }
   useEffect(() => {
     if (previousScene.current !== scene) {
       (scene === 'workbench' ? headingRef.current : homeButtonRef.current)?.focus({ preventScroll: true })
@@ -79,8 +116,8 @@ export default function App() {
     </AnimatePresence>
     <div className="persistent-scene"><Suspense fallback={<div className="scene-fallback">正在加载三维引擎…</div>}><CpuScene anchorRef={anchorRef} /></Suspense></div>
     <header className="app-header">
-      <button className="brand" onClick={home} aria-label="芯生首页"><span className="brand-mark">芯</span><span>芯生<span className="brand-en">SILICON LIFE</span></span></button>
-      <nav aria-label="主导航"><button className={!open ? 'current' : ''} onClick={home}>探索芯片</button><button className={open ? 'current' : ''} onClick={enter}>CPU 工作台</button></nav>
+      <button className="brand" onClick={requestHome} aria-label="芯生首页"><span className="brand-mark">芯</span><span>芯生<span className="brand-en">SILICON LIFE</span></span></button>
+      <nav aria-label="主导航"><button className={!open ? 'current' : ''} onClick={requestHome}>探索芯片</button><button className={open ? 'current' : ''} onClick={enter}>CPU 工作台</button></nav>
       <div className="header-meta"><span className="tiny-dot" />RV32I<span className="header-divider" />单周期架构</div>
     </header>
 
@@ -92,7 +129,7 @@ export default function App() {
       <WorkbenchLayout open={open} program={<AnimatePresence>{open && <ScenePresence key="program" id="program-region" label="程序与指令编辑" as="aside" className="program-panel panel-scroll" delay={MOTION.ui.stagger * 2}>
           <PanelEdgeBlur position="top" /><ProgramPanel /><PanelEdgeBlur position="bottom" />
         </ScenePresence>}</AnimatePresence>} scene={<>
-          <AnimatePresence>{open && <ScenePresence key="toolbar" className="scene-toolbar" delay={MOTION.ui.stagger * 3}><span><span className="tiny-dot" />Teaching plane <small>2.5D</small></span><button className="text-button" onClick={resetView}>↺ 恢复视角</button></ScenePresence>}</AnimatePresence>
+          <AnimatePresence>{open && <ScenePresence key="toolbar" className="scene-toolbar" delay={MOTION.ui.stagger * 3}><span><span className="tiny-dot" />Teaching plane <small>2.5D</small></span><span className="scene-toolbar-actions"><ExplorerBackButton /><PeripheralDock /><button className="text-button" onClick={resetView}>↺ 恢复视角</button></span></ScenePresence>}</AnimatePresence>
           <div ref={anchorRef} className="scene-viewport" data-testid="scene-anchor" aria-label={open ? 'CPU 三维交互区域' : '芯片三维交互区域'} />
           <div className="scene-bottom"><span>拖拽旋转 <span className="separator">·</span> 滚轮缩放 <span className="separator">·</span> 右键平移</span>{open && <span className="scene-legend" aria-label="信号语义图例"><i />数据<i className="control" />控制<i className="writeback" />写回</span>}</div>
           </>} details={<><PanelEdgeBlur position="top" /><AnimatePresence>{open && <ScenePresence key="controls" className="execution-presence" delay={MOTION.ui.stagger * 3}>
@@ -108,7 +145,7 @@ export default function App() {
             <div className="execution-status" role="status"><span className={`status-dot ${cpu.status === 'fault' ? 'fault' : ''}`} />{status}<span className="status-detail">{cpu.reason ?? (current !== undefined ? `下一条：${instructionRow(program, cpu.pc / 4).assembly}` : '')}</span></div>
           </ScenePresence>}</AnimatePresence>
           <AnimatePresence>{open && <ScenePresence key="trace" className="trace-presence" delay={MOTION.ui.stagger * 4}><TracePanel /></ScenePresence>}</AnimatePresence></>}
-        state={<AnimatePresence>{open && <ScenePresence key="state" id="state-region" label="寄存器与数据内存" as="aside" className="state-panel panel-scroll" delay={MOTION.ui.stagger * 3}><PanelEdgeBlur position="top" /><RegisterPanel /><MemoryPanel /><PanelEdgeBlur position="bottom" /></ScenePresence>}</AnimatePresence>} />
+        state={<AnimatePresence>{open && <ScenePresence key="state" id="state-region" label="寄存器与数据内存" as="aside" className="state-panel panel-scroll" delay={MOTION.ui.stagger * 3}><PanelEdgeBlur position="top" /><ModuleExplorerPanel /><DisplayPanel /><RegisterPanel /><MemoryPanel /><PanelEdgeBlur position="bottom" /></ScenePresence>}</AnimatePresence>} />
     </main>
 
     <footer className="app-footer"><span>SWUST-OC 一生一芯学习小组</span><span>{open ? '真实执行 · 快照驱动可视化' : 'Cinematic Reveal + Teaching Plane'}</span><span>Sprint 03.1 <span className="separator">/</span> 2026</span></footer>

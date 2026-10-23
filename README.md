@@ -1,8 +1,10 @@
 # 芯生 / Silicon Life
 
+Sprint 07：工作台全部 **11 个模块**均可点击内部探索，查看 RTL 功能结构与真实 Trace 信号；右侧按钮同样可进入，「返回主板」/ Esc 平滑返回。进入时暂停，可继续单步，与 MMIO 聚焦互斥并保留单 Canvas。图形是功能层级示意，外部 ROM/RAM 与 cpu_top 教学分组明确标注。见 [全部模块说明](docs/SPRINT_07_EXPLORATION.md)及 [Sprint 06 框架](docs/SPRINT_06_EXPLORATION.md)。
+
 DeepSeek V3 芯片视觉已在本分支完成：完整封装、电影化解构与可读的教学电路板共用既有单 CPU Canvas、连续转场和真实教学数据通路。实现、截图与验证见 [CHIP_V3_VISUAL](docs/CHIP_V3_VISUAL.md)；V2 集成记录见 [CHIP_V2_INTEGRATION](docs/CHIP_V2_INTEGRATION.md)。原型目录为冻结参考，其 UI、DemoModules 和相机控制不进入正式场景。
 
-基于真实 RV32I 单周期架构的三维交互教学网站。Sprint 03.1 支持 **ADDI、ADD、LW、SW、BEQ** 的最多 10 个本地项目、65536 条 ROM、1/64/256 KiB RAM、IndexedDB 自动保存和 JSON / HEX 备份、RTL 信号快照和连续可逆的芯片展开。
+基于真实 RV32I 单周期架构的三维交互教学网站。Sprint 05 支持 **40 条 RV32I 基础整数指令**（FENCE 为有序屏障空操作，ECALL/EBREAK 为非退休 Trap 停止），最多 10 个本地项目、按需分配的最多 262144 字 / 1 MiB ROM、1/64/256 KiB 或 1 MiB RAM、IndexedDB 自动保存和 JSON / HEX 备份、RTL 对应的软件信号快照和连续可逆的芯片展开。指令表和三个小程序见 [Sprint 05](docs/SPRINT_05_RV32I.md)。
 
 仓库：[JouCristian/Silicon-Life](https://github.com/JouCristian/Silicon-Life)，生产环境：[silicon-life.vercel.app](https://silicon-life.vercel.app/)。PR #1、#2、#3 已合并；`feat/chip-v3-visual` 完整包含 V2 集成 `aae1c46` 和 V3 人工验收冻结 `f218079`。GitHub 集成范围、历史原型归档、分支禁部署与标签策略见 [V3_GITHUB_INTEGRATION](docs/V3_GITHUB_INTEGRATION.md)。本地冻结 Tag 保留，不自动合并或部署。未连接 v0。
 
@@ -40,9 +42,9 @@ addi x3, x0, 42
 
 ## 操作与语义
 
-- 三个示例只读，点击「复制为我的项目」后编辑。选择指令编辑操作数，查看 I/R/S/B 型 32 位机器码；应用或切换项目会复位。
+- 三个原有示例只读，点击「复制为我的项目」后编辑。编码器可选择全部 RV32I 操作，查看 I/R/S/B/U/J 型机器码；应用或切换项目会复位。
 - 寄存器可切有符号十进制 / 十六进制；复位后可设置 x1–x31。x0 恒为 0。
-- 数据内存可选 1 / 64 / 256 KiB，小端，LW/SW 按 4 字节对齐访问。支持 8/32 位初始数据编辑、初始 / 运行视图、DEC/HEX 和相邻字节观察；Δ 标记运行期间的差异。复位恢复用户初始 RAM 与寄存器，修改 ROM 保留配置，切换项目恢复各自独立的配置。
+- 数据内存可选 1 / 64 / 256 KiB / 1 MiB，小端，LW/SW 按 4 字节对齐访问。支持 8/32 位初始数据编辑、初始 / 运行视图、DEC/HEX 和相邻字节观察；Δ 标记运行期间的差异。复位恢复用户初始 RAM 与寄存器，独立修改 ROM 保留配置，切换项目恢复各自独立的配置。
 - 「单步指令」提交一个架构边沿，随后讲解同一快照。「暂停 / 暂停讲解」冻结播放，「继续讲解」继续快照，「回放」从取指重新观察。均不重复写回或存储。
 - 五个阶段是教学观察，**不是五个时钟周期或流水线**。脉冲时间依据示意线路长度安排，不代表真实门延迟。
 - 蓝色表示数据、浅金表示控制、青绿色表示写回；来源均为 Core 的 Trace。专业模式显示 RTL 原名信号。
@@ -64,14 +66,16 @@ addi x3, x0, 42
 1. 在「当前项目」直接新建、复制、重命名或删除。最多 10 个自定义项目，不计三个内置只读示例。删除需确认。每个项目独立保存 ROM、初始 RAM、32 个初始寄存器、RAM 容量和版本 / 时间信息。
 2. 修改配置后显示「正在保存…」，只有 IndexedDB 事务成功后才显示「已保存到本机」。刷新恢复项目列表和最近选择，CPU 从初始配置重启，不恢复运行状态或 Trace。关闭前等待保存完成；失败 / 未完成时离开会提示，失败项目仍可导出 JSON。
 3. 「项目 JSON 备份」导出完整项目，重新导入会创建独立副本，避免覆盖现有项目。**浏览器本地保存不是云同步**，不同设备、不同域名之间不会同步，清理网站数据可能删除项目。请定期备份。
-4. ROM 最多 **65536 条 / 256 KiB**，列表每页 16 条；支持按十进制 / `0x` PC 地址跳转，机器码地址 +4。排序不会自动修改 BEQ 偏移，目标提示需要检查。✓ 标记最近保留的执行记录。
+4. ROM 最多 **262144 个 32 位字 / 1 MiB**，按实际长度分配，列表每页 16 条；支持按十进制 / `0x` PC 地址跳转，机器码地址 +4。排序不会自动修改分支/跳转偏移，目标提示需要检查。✓ 标记最近保留的执行记录。HEX 加载成功不代表当前运行环境可完整执行文件（扩展指令、其他 MMIO、OS 未实现）。
 5. ROM 文件通过「导入 ROM」打开，选择文件 → Worker 解析 → 预览 → 确认替换或追加。默认保留所有合法 unsigned32 原始字，未知指令明确标注，运行到它时按 PC / 机器码安全停止。可勾选严格模式拒绝未支持指令。格式错误或超限不替换原项目。
 6. RAM 明确分为「初始 RAM · 配置」和「运行 RAM · 只读」。初始模式支持 8/32 位编辑、地址跳转、HEX 导入导出、容量调整和确认清空。执行后先复位再配置；缩小容量需确认。运行模式只读，Δ、字节排列与最近写入地址帮助观察，Reset 恢复初始数据。
 7. 「运行」逐条讲解；「快速运行」跳过逐条动画，批次最多 512 条 / 约 8ms，逐帧让出主线程。两者使用同一 Core.step，只有提交产生状态，回放不重复执行。预算用尽保留 ready 状态，允许用户继续。
 
 [arithmetic.hex](examples/arithmetic.hex) 导入 ROM 后得到 x3=12。导入 [memory-init.hex](examples/memory-init.hex) 时，RAM 选择 **32-bit、起始字节地址 0**，再创建一条 `lw x3, 64(x0)`（`04002183`），得到 x3=42。详细格式见 [HEX_FORMAT](docs/HEX_FORMAT.md)，存储和容量设计见 [ARCHITECTURE](docs/ARCHITECTURE.md)，性能实测见 [VALIDATION](docs/VALIDATION.md)。
 
-ROM / RAM 共用自定义文件按钮，文件名单独省略显示并可悬停查看完整名称，支持重新选择同名文件。所有解析只在本机进行，无后端。React Bits 保持 Sprint 03 的集成；V3 只升级 3D 场景视觉，不改动其语义与 Canvas 生命周期。[来源与许可证](docs/THIRD_PARTY.md)。MMIO 仍仅架构规划。
+程序与静态数据共用一个 Logisim 镜像时，在「ROM HEX 导入 / 导出 → 装载方式」选择「统一内存镜像导入（Logisim 兼容）」，再选 HEX 并确认。一次性替换 ROM 和初始 RAM（自动设为 1 MiB），32 位字地址乘 4 映射到 CPU 字节地址；保留初始寄存器并复位执行。运行 RAM 的写入不会改写 ROM。ARTEMIS 原样本完整加载 142272 字，栈 `0x93000` 可读写。Sprint 05.5 新增独立 Logisim RGB 显示设备：`0x20000000…0x2003ffff`，256×256、00RRGGBB，SW 写入立即更新像素。在「快速运行」中选择 1,000,000 步预算，可运行至完整图像；程序随后进入自身 halt 循环，可暂停。详见 [显示设备协议与实测](docs/MMIO_DISPLAY.md)。
+
+ROM / RAM 共用自定义文件按钮，文件名单独省略显示并可悬停查看完整名称，支持重新选择同名文件。所有解析只在本机进行，无后端。React Bits 保持 Sprint 03 的集成；V3 只升级 3D 场景视觉，不改动其语义与 Canvas 生命周期。[来源与许可证](docs/THIRD_PARTY.md)。MMIO 当前仅实现 Logisim RGB 显示器的 SW 协议。
 
 ## 验证与构建
 
@@ -99,6 +103,6 @@ E2E 保存首帧、中段、结束、反向截图及逐帧 JSON 到 `.local/`。
 
 CPU Core 无框架依赖；`src/io/` 提供程序 / HEX / 初始 RAM 纯函数；Store 原子协调初始配置、提交和播放；`src/motion/` 统一时间、弹簧、传播调度；场景拓扑在 `src/scenes/topology.ts`。协作见 [AGENTS](AGENTS.md)、[V0_COLLAB](docs/V0_COLLAB.md)，信号依据见 [RTL_MAPPING](docs/RTL_MAPPING.md)，贡献见 [AI_USAGE_LOG](docs/AI_USAGE_LOG.md)。
 
-`rtl/`、`package/` 保持只读且不进入 Web 仓库。无 Testbench，未完成 RTL 联合仿真；不声称完整 RV32I、完整 Trap、CSR 或外部 FPGA 等价。没有后端、云同步、流水线和聊天系统；本地持久化只保存项目配置。Three 共享包仍较大，构建会提示体积警告。
+`rtl/`、`package/` 保持只读且不进入 Web 仓库。RTL 已覆盖 RV32I，本轮语法编译通过，但无 Testbench 联合仿真，不能声称外部 FPGA 等价。无 CSR、特权系统、其他 MMIO、OS 或扩展 ISA。没有后端、云同步、流水线和聊天系统；本地持久化只保存项目配置。Three 共享包仍较大，构建会提示体积警告。
 
 如本机镜像缓存冲突，可用 `npm ci --registry=https://registry.npmjs.org --cache .local/npm-cache`，无需修改全局配置。

@@ -3,6 +3,7 @@ import { PHASES, PHASE_LABELS } from '../core/trace/types'
 import { useLabView } from '../stores/useLabStore'
 import { PLAYBACK_RATES, transferSteps } from '../motion/transferPlayback'
 import { GlideSelect } from './GlideSelect'
+import { ALU_LABELS } from '../core/cpu'
 
 export function TracePanel() {
   const { trace, phase, observe, history, traceIndex, replay, resumePlayback, pause, playing, mode, stepTransfer, transferPlayback, playbackRate, setPlaybackRate, playbackEpoch } = useLabView()
@@ -10,10 +11,10 @@ export function TracePanel() {
   const transfer = transferPlayback.mode === 'transfer' ? steps[transferPlayback.index] : undefined
   const descriptions = trace ? {
     fetch: `PC ${hex(trace.before.pc)} 向指令存储器寻址，读出 ${hex(trace.word)}。`,
-    decode: `${trace.instruction.op}：读取 x${trace.instruction.rs1} = ${i32(trace.signals.rs1_data)}，${'imm' in trace.instruction ? `立即数符号扩展为 ${i32(trace.signals.imm)}` : `读取 x${trace.instruction.rs2} = ${i32(trace.signals.rs2_data)}`}。`,
-    execute: trace.instruction.op === 'BEQ' ? `Branch Unit 比较 ${i32(trace.signals.rs1_data)} 与 ${i32(trace.signals.rs2_data)}，分支${trace.signals.redirect ? '成立' : '不成立'}；next_pc = ${hex(trace.signals.next_pc)}。` : `ALU 计算 ${i32(trace.signals.alu_a)} + ${i32(trace.signals.alu_b)} = ${i32(trace.signals.alu_result)}，结果保留低 32 位。`,
-    memory: trace.memoryAccess ? `${trace.memoryAccess.kind === 'load' ? 'LW 读取' : 'SW 写入'}地址 ${hex(trace.memoryAccess.address)}，数据 ${hex(trace.memoryAccess.data)}，字节选通 ${trace.signals.dmem_wstrb.toString(2).padStart(4, '0')}。` : '本条指令不访问数据内存，mem_read = 0，mem_write = 0。',
-    writeback: trace.write.committed ? `将 ${i32(trace.write.value)} 写入 x${trace.write.rd}，PC 更新为 ${hex(trace.after.pc)}。` : `${trace.signals.reg_write ? '目标为 x0，丢弃寄存器写入' : '本条指令不写寄存器'}；PC 更新为 ${hex(trace.after.pc)}。`,
+    decode: `${trace.instruction.op}：${'rs1' in trace.instruction ? `rs1=x${trace.instruction.rs1} (${hex(trace.signals.rs1_data)})；` : ''}${'rs2' in trace.instruction ? `rs2=x${trace.instruction.rs2} (${hex(trace.signals.rs2_data)})；` : ''}${'imm' in trace.instruction ? `imm_gen=${hex(trace.signals.imm)}（移位取低 5 位）` : trace.instruction.op === 'FENCE' ? '单核有序内存屏障，无寄存器写回' : '无立即数操作数'}。`,
+    execute: trace.trap ? trace.trap.reason : trace.signals.branch ? `${trace.instruction.op} 比较 ${hex(trace.signals.rs1_data)} 与 ${hex(trace.signals.rs2_data)}，分支${trace.signals.redirect ? '成立' : '不成立'}；next_pc=${hex(trace.signals.next_pc)}。` : trace.signals.jump ? `${trace.instruction.op} 目标=${hex(trace.signals.target)}；链接值 PC+4=${hex(trace.signals.pc_plus4)}${trace.signals.jalr ? '；JALR 清除目标 bit 0，再检查 4 字节对齐' : ''}。` : trace.instruction.op === 'FENCE' ? '单核有序模型中 FENCE 为屏障空操作，PC+4。' : `ALU ${ALU_LABELS[trace.signals.alu_op]}(${hex(trace.signals.alu_a)}, ${hex(trace.signals.alu_b)}) = ${hex(trace.signals.alu_result)}。`,
+    memory: trace.memoryAccess ? `${trace.instruction.op} ${trace.memoryAccess.space === 'mmio' ? '访问显示 MMIO（RAM 不变），' : ''}${trace.memoryAccess.kind === 'load' ? '读取' : '写入'} ${trace.memoryAccess.width ?? 32} 位，地址 ${hex(trace.memoryAccess.address)}，数据 ${hex(trace.memoryAccess.data)}，写字节选通 ${trace.signals.dmem_wstrb.toString(2).padStart(4, '0')}。${trace.mmioWrite ? `像素 (${trace.mmioWrite.x}, ${trace.mmioWrite.y}) = #${trace.mmioWrite.rgb.toString(16).padStart(6, '0')}。` : ''}` : '本条指令不访问数据内存，mem_read = 0，mem_write = 0。',
+    writeback: trace.trap ? `Trap cause=${trace.trap.cause}，PC=${hex(trace.after.pc)} 保持，寄存器/RAM 不变，不增加退休计数。` : trace.write.committed ? `将 ${i32(trace.write.value)} 写入 x${trace.write.rd}，PC 更新为 ${hex(trace.after.pc)}。` : `${trace.signals.reg_write ? '目标为 x0，丢弃寄存器写入' : '本条指令不写寄存器'}；PC 更新为 ${hex(trace.after.pc)}。`,
   } : null
   return <section className="trace-panel">
     <div className="section-title"><h2>观察一条指令</h2><span>{trace ? assembly(trace.instruction) : '从单步开始'}</span></div>
@@ -35,7 +36,8 @@ export function TracePanel() {
     })}</div>
     <p className="phase-description" aria-live="polite">{descriptions?.[phase] ?? '点击「单步指令」，观察数据如何穿过一颗单周期 CPU。'}</p>
     <div className="trace-note"><span className="tiny-dot" />慢动作仅解释已提交的快照，不增加时钟周期。</div>
-    {mode === 'pro' && <div className="signals"><div className="section-title"><h3>RTL 信号快照</h3><span>ADDI / ADD / LW / SW / BEQ</span></div>{trace ? Object.entries(trace.signals).map(([key, value]) => <div key={key}><code>{key}</code><code>{key.endsWith('_data') || key.startsWith('dmem_') && key !== 'dmem_we' && key !== 'dmem_wstrb' || ['imm', 'alu_a', 'alu_b', 'alu_result', 'target', 'normal_next_pc', 'pc_value', 'pc_plus4', 'next_pc', 'imem_addr', 'imem_rdata'].includes(key) ? hex(value) : value}</code></div>) : <p className="field-help">执行后显示与 cpu_top.v 对应的信号。</p>}</div>}
+    {trace?.visualizationOmissions && <p className="field-help">{trace.visualizationOmissions.join('；')}。真实值可在信号快照观察，未沿其他线路代演。</p>}
+    {mode === 'pro' && <div className="signals"><div className="section-title"><h3>RTL 信号快照</h3><span>RV32I · 软件计算</span></div><p className="field-help">对应已读取 RTL 的名称与编码；尚未完成 RTL 联合仿真。</p>{trace ? Object.entries(trace.signals).map(([key, value]) => <div key={key}><code>{key}</code><code>{key.endsWith('_data') || key.startsWith('dmem_') && key !== 'dmem_we' && key !== 'dmem_wstrb' || ['imm', 'alu_a', 'alu_b', 'alu_result', 'target', 'normal_next_pc', 'pc_value', 'pc_plus4', 'next_pc', 'imem_addr', 'imem_rdata'].includes(key) ? hex(value) : value}</code></div>) : <p className="field-help">执行后显示与 cpu_top.v 对应的信号。</p>}</div>}
     {history.length > 0 && <div className="history"><label htmlFor="trace-history">执行记录</label><GlideSelect
       id="trace-history"
       ariaLabel="执行记录"

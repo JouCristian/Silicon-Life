@@ -9,6 +9,8 @@ import { createMemory, type DataMemory } from '../core/memory'
 import { type ProgramWords } from '../core/rom'
 import { MAX_PROJECTS, newProject, projectName, RAM_SIZES, type Project } from '../projects/model'
 import { insertWord, moveWord, removeWord, validateProgram } from '../io/program'
+import { unifiedMemoryImage } from '../io/memoryImage'
+import type { HexImage } from '../io/hex'
 
 interface LabStore {
   projects: readonly Project[]
@@ -46,6 +48,7 @@ interface LabStore {
   deleteInstruction: (index: number) => void
   moveInstruction: (from: number, to: number) => void
   importProgram: (words: ArrayLike<number>, append?: boolean, strict?: boolean) => void
+  importUnifiedImage: (image: HexImage) => void
   setInitialMemory: (memory: DataMemory) => void
   loadProgram: (id: string) => void
   history: readonly ExecutionTrace[]
@@ -218,12 +221,19 @@ export const useLabStore = create<LabStore>((set, get) => ({
     const s = get()
     if (!words.length) throw new Error('导入程序不能为空')
     const program = validateProgram(append ? [...s.program, ...Array.from(words)] : words, strict)
-    set({ ...resetSession(s), ...projectPatch(s, program), customBaseline: program, selectedInstruction: 0, projectNotice: `导入成功：${words.length.toLocaleString()} 条指令` })
+    set({ ...resetSession(s), ...projectPatch(s, program), customBaseline: program, selectedInstruction: 0, projectNotice: `HEX 加载成功：${words.length.toLocaleString()} 个 32 位字已完整载入；加载成功不代表可以完整运行。CPU 支持 RV32I，ECALL/EBREAK 停止，支持 Logisim RGB 显示 SW；扩展指令、其他 MMIO 和操作系统未实现。` })
+  },
+  importUnifiedImage: image => {
+    const s = get(), { program, memory } = unifiedMemoryImage(image)
+    const patch = projectPatch(s, program, memory)
+    set({ ...resetSession({ ...s, initialMemory: memory }), ...patch,
+      customBaseline: program, selectedInstruction: 0,
+      projectNotice: `统一 HEX 加载成功：${program.length.toLocaleString()} 个 32 位字完整初始化 ROM 与 1 MiB RAM，字地址 × 4 = CPU 字节地址。执行已复位，初始寄存器保留；加载成功不代表可以完整运行，仅支持 Logisim RGB 显示 SW，其余 MMIO 未实现。运行时写 RAM 不会改写 ROM。` })
   },
   setInitialMemory: memory => {
     const s = get()
     if (s.cpu.retired || s.playing || s.running || s.fastRunning) throw new Error('请先复位，再配置初始 RAM')
-    if (!RAM_SIZES.some(size => size === memory.length)) throw new Error('初始 RAM 容量必须为 1 KiB / 64 KiB / 256 KiB')
+    if (!RAM_SIZES.some(size => size === memory.length)) throw new Error('初始 RAM 容量必须为 1 KiB / 64 KiB / 256 KiB / 1 MiB')
     const checked = createMemory(memory)
     set({ ...resetSession({ ...s, initialMemory: checked }), ...projectPatch(s, s.program, checked) })
   },

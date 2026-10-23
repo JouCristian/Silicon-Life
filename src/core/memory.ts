@@ -1,13 +1,13 @@
 import { u32 } from './isa'
-import { PagedMemory } from './pagedMemory'
+import { MAX_MEMORY_BYTES, PagedMemory } from './pagedMemory'
+export { MAX_MEMORY_BYTES } from './pagedMemory'
 
 export const MEMORY_BYTES = 1024
-export const MAX_MEMORY_BYTES = 256 * 1024
 export type DataMemory = readonly number[] | PagedMemory
 
 export function createMemory(bytes: ArrayLike<number> = new Uint8Array(MEMORY_BYTES)): DataMemory {
   if (bytes instanceof PagedMemory) return bytes
-  if (!Number.isInteger(bytes.length) || bytes.length < 4 || bytes.length > MAX_MEMORY_BYTES || bytes.length % 4) throw new Error('内存须为 4–262144 字节、4 字节对齐的字节数组')
+  if (!Number.isInteger(bytes.length) || bytes.length < 4 || bytes.length > MAX_MEMORY_BYTES || bytes.length % 4) throw new Error(`内存须为 4–${MAX_MEMORY_BYTES} 字节、4 字节对齐的字节数组`)
   for (let i = 0; i < bytes.length; i++) if (!Number.isInteger(bytes[i]) || bytes[i] < 0 || bytes[i] > 255) throw new Error('内存包含非法字节')
   return bytes.length > MEMORY_BYTES ? new PagedMemory(bytes) : Object.freeze(Array.from(bytes))
 }

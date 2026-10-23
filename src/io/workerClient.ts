@@ -1,7 +1,7 @@
-import type { CellWidth } from './hex'
+import type { CellWidth, HexByteOrder, HexImage } from './hex'
 import type { ProjectRecord } from '../projects/model'
 
-export interface ParsedFile { format?: string; width?: CellWidth; values?: Uint32Array; project?: ProjectRecord; error?: string }
+export interface ParsedFile { format?: HexImage['format']; width?: CellWidth; byteOrder?: HexByteOrder; values?: Uint32Array; project?: ProjectRecord; error?: string }
 export function parseFileWorker(text: string, width: CellWidth, maxValues: number, kind: 'hex' | 'project', signal?: AbortSignal): Promise<ParsedFile> {
   return new Promise((resolve, reject) => {
     const worker = new Worker(new URL('./parse.worker.ts', import.meta.url), { type: 'module' })

@@ -8,7 +8,7 @@ self.onmessage = (event: MessageEvent<{ text: string; width: CellWidth; maxValue
       self.postMessage({ project }, { transfer: [project.instructionROM.buffer, project.initialRAM.buffer, project.initialRegisters.buffer] })
     } else {
       const parsed = parseHex(event.data.text, event.data.width, event.data.maxValues), values = Uint32Array.from(parsed.values)
-      self.postMessage({ format: parsed.format, width: parsed.width, values }, { transfer: [values.buffer] })
+      self.postMessage({ format: parsed.format, width: parsed.width, byteOrder: parsed.byteOrder, values }, { transfer: [values.buffer] })
     }
   } catch (error) { self.postMessage({ error: (error as Error).message }) }
 }

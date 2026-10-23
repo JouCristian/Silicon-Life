@@ -1,4 +1,5 @@
 export const PAGE_BYTES = 1024
+export const MAX_MEMORY_BYTES = 1024 * 1024
 const OWNED = Symbol('owned pages')
 
 /** Persistent page table: a write copies one 1KiB page, never the whole RAM. */
@@ -9,7 +10,7 @@ export class PagedMemory implements Iterable<number> {
   readonly copiedPageBytes: number
   constructor(bytes: ArrayLike<number>, pages?: readonly Uint8Array[], ownership?: symbol, copiedBytes?: number) {
     if (pages && ownership !== OWNED) throw new Error('Invalid page ownership')
-    if (!Number.isInteger(bytes.length) || bytes.length < 4 || bytes.length > 262144 || bytes.length % 4) throw new Error('无效 RAM 长度')
+    if (!Number.isInteger(bytes.length) || bytes.length < 4 || bytes.length > MAX_MEMORY_BYTES || bytes.length % 4) throw new Error('无效 RAM 长度')
     if (!pages) for (let i = 0; i < bytes.length; i++) if (!Number.isInteger(bytes[i]) || bytes[i] < 0 || bytes[i] > 255) throw new Error('RAM 包含非法字节')
     this.length = bytes.length
     this.copiedPageBytes = copiedBytes ?? bytes.length

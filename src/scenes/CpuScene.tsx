@@ -17,7 +17,9 @@ import { StudioEnvironment } from './chip/StudioEnvironment'
 import { cameraPathEase, cinematicEase } from './chip/cinematic'
 import type { IntegratedChip } from './chip/model'
 import { TeachingBoard } from './teaching/TeachingBoard'
+import { PeripheralDisplay } from './PeripheralDisplay'
 import { ALU_LABELS } from '../core/cpu'
+import { usePeripheralStore } from '../stores/usePeripheralStore'
 
 type Anchor = RefObject<HTMLDivElement | null>
 const SPRING = (): SpringState => ({ position: 0, velocity: 0 })
@@ -48,6 +50,9 @@ function isSoftwareRenderer(renderer: WebGLRenderer): boolean {
 
 function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef: Anchor }) {
   const { scene, enter, trace, phase, viewVersion, cpu, playbackEpoch, inspection, playing } = useLabView()
+  const peripheralInstalled = usePeripheralStore(state => state.installed.includes('display'))
+  const focusedPeripheral = usePeripheralStore(state => state.focused)
+  const focusPeripheral = usePeripheralStore(state => state.focus)
   const reduced = useMotionPreference()
   const { camera, size, gl } = useThree()
   const softwareRenderer = useMemo(() => isSoftwareRenderer(gl), [gl])
@@ -57,6 +62,9 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
   const chip = useRef<IntegratedChip | null>(null)
   const blocks = useRef<(Group | null)[]>([])
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null)
+  const displayAnchor = useRef<Group>(null)
+  const focusTarget = useMemo(() => new Vector3(), [])
+  const focusEye = useMemo(() => new Vector3(0, -.12, 8.2), [])
   const reveal = useRef(SPRING())
   const revealTween = useRef({ from: 0, to: 0, elapsed: 0, duration: 0, active: false })
   const anchorX = useRef(SPRING()), anchorY = useRef(SPRING()), scale = useRef({ position: 1, velocity: 0 })
@@ -104,6 +112,12 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
     return () => { observer.disconnect(); window.removeEventListener('scroll', followScroll); window.removeEventListener('resize', measure) }
   }, [anchorRef, scene, size.width, size.height])
   useEffect(() => { autoView.current = true; document.body.style.cursor = ''; return () => { document.body.style.cursor = '' } }, [scene, viewVersion])
+  useEffect(() => {
+    autoView.current = focusedPeripheral !== 'display'
+  }, [focusedPeripheral])
+  useEffect(() => {
+    if (!open && focusedPeripheral) focusPeripheral(null)
+  }, [open, focusedPeripheral, focusPeripheral])
 
   useFrame(({ clock }, dt) => {
     // The first render delta may include a long frame BEFORE the new target was
@@ -153,7 +167,16 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
       }
     }
     const t = tState.position
-    if (autoView.current) {
+    const displayFocus = open && peripheralInstalled && focusedPeripheral === 'display' && displayAnchor.current
+    if (displayFocus) {
+      displayAnchor.current!.getWorldPosition(focusTarget)
+      cameraPoint.copy(focusTarget).add(focusEye)
+      const follow = reduced ? 1 : 1 - Math.exp(-CAMERA_RESPONSE * dt)
+      camera.position.lerp(cameraPoint, follow)
+      controls.current?.target.lerp(focusTarget, follow)
+      controls.current?.update()
+      autoView.current = false
+    } else if (autoView.current) {
       // The camera target travels on a later, gently overshooting Bezier path;
       // the camera itself still follows with frame-rate-independent damping.
       const pathT = cameraPathEase(clamp01((t - .14) / .8))
@@ -171,7 +194,7 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
     const distance = cameraHome.length() * (1 - t) + cameraPlane.length() * t
     const halfHeight = distance * Math.tan(40 * Math.PI / 360)
     const ppu = size.height / (2 * halfHeight)
-    const targetScale = Math.min(anchor.current.width / (open ? 18.3 : 10.5), anchor.current.height / (open ? 11.75 : 10.4)) / ppu
+    const targetScale = Math.min(anchor.current.width / (open ? (peripheralInstalled ? 23.4 : 18.3) : 10.5), anchor.current.height / (open ? (peripheralInstalled ? 12.35 : 11.75) : 10.4)) / ppu
     if (!initialized.current || reduced) {
       anchorX.current.position = anchor.current.x; anchorY.current.position = anchor.current.y; scale.current.position = targetScale
       initialized.current = true
@@ -192,6 +215,8 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
       root.dataset.renderQuality = softwareRenderer ? 'compat' : 'pbr'
       root.dataset.compactLabels = String(anchor.current.height < 280)
       root.dataset.mediumLabels = String(anchor.current.height >= 280 && anchor.current.height < 360)
+      root.dataset.peripheralInstalled = String(peripheralInstalled)
+      root.dataset.peripheralFocus = focusedPeripheral === 'display' ? 'display' : ''
       root.dataset.renderTime = clock.elapsedTime.toFixed(4)
       if (import.meta.env.DEV) {
         root.dataset.drawCalls = String(gl.info.render.calls)
@@ -277,13 +302,14 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
         <TeachingBoard />
         {WIRES.map(wire => <SignalFlow key={wire.id} wire={wire} transfer={timeline.transfers.find(t => t.id === wire.id)} timeline={timeline} epoch={playbackEpoch} inspection={inspection} reduced={reduced} />)}
         {MODULES.map((module, i) => <group key={module.id} ref={el => { blocks.current[i] = el }}><ModuleBlock module={module} labelHost={labelHost} value={valueFor(module.id)} reveal={reveal.current} timeline={timeline} epoch={playbackEpoch} inspection={inspection} reduced={reduced} open={open} /></group>)}
+        <PeripheralDisplay screenAnchor={displayAnchor} />
       </group>
       <group onClick={event => { event.stopPropagation(); if (!open && event.delta <= 4) enter() }} onPointerOver={() => { if (!open) document.body.style.cursor = 'pointer' }} onPointerOut={() => { document.body.style.cursor = '' }}>
         <ChipAsset model={chip} host={labelHost.parentElement!} materialMode={materialMode} />
       </group>
       <Html portal={{ current: labelHost }} center position={[0, 0, .6]} zIndexRange={[8, 0]} style={{ pointerEvents: 'none' }}><span className="chip-hit-anchor" aria-label="芯生 V3 芯片" style={{ display: 'block', width: 1, height: 1 }} /></Html>
     </group></group>
-    <OrbitControls ref={controls} domElement={anchorRef.current ?? undefined} makeDefault enableDamping dampingFactor={.075} minDistance={18} maxDistance={44} minPolarAngle={.12} maxPolarAngle={Math.PI / 2.15} onStart={() => { autoView.current = false }} />
+    <OrbitControls ref={controls} domElement={anchorRef.current ?? undefined} makeDefault enableDamping dampingFactor={.075} minDistance={3.2} maxDistance={44} minPolarAngle={.12} maxPolarAngle={Math.PI / 2.15} enableRotate={focusedPeripheral !== 'display'} enablePan={focusedPeripheral !== 'display'} enableZoom={focusedPeripheral !== 'display'} onStart={() => { autoView.current = false }} />
   </>
 }
 

@@ -26,9 +26,17 @@
 
 设备是 `src/core/devices/logisimDisplay.ts` 的纯不可变状态。独立 framebuffer 采用页共享，一次像素写仅复制一页。RAM、ROM 和显示缓存互不别名；非法访问在任何提交前检查，未知高地址继续报错。
 
-`CpuState.display` 保存设备，`memoryAccess.space` 区分 ram/mmio，`mmioWrite` 记录实际坐标和颜色，原 `dmem_*` 信号不变。冻结教学板没有外设几何，MMIO 不沿 RAM 线路代演；Trace 会说明缺失连接，RAM 最近写入列表排除 MMIO。
+`CpuState.display` 保存设备，`memoryAccess.space` 区分 ram/mmio，`mmioWrite` 记录实际坐标和颜色，原 `dmem_*` 信号不变。冻结教学板的数据通路拓扑没有外设连线；MMIO 不沿 RAM 线路代演，Trace 仍说明缺失连接，RAM 最近写入列表排除 MMIO。3D 显示器是独立 sidecar 几何，不属于 Core 拓扑。
 
 面板绘制当前提交状态；检查历史时绘制选中 Trace.after。暂停、观察阶段、回放不产生额外写入。复位、切换或导入项目清屏。项目仍只持久化初始 ROM/RAM/寄存器，不保存运行画面，schema 不变。
+
+## 工作台 3D 外设呈现
+
+- 工作台新增「添加外设」入口与设备选择面板；显示设备通过会话级 `usePeripheralStore` 挂载，2D 面板与 3D 显示器仅在挂载后出现。
+- 显示器是同一 CPU Canvas 内的 sidecar 几何，屏幕贴图直接读取 `CpuState.display` 的 256×256 RGB888 帧缓冲；不新建 Three Renderer，也不生成演示像素。
+- 入场使用约 1.25s 的全息显影：扫描光束、网格和材质渐显；出场把最后一帧复制为模糊残影，再从屏幕中心向内收缩，使用临界阻尼弹簧，避免下坠后闪断。
+- 点击屏幕或「聚焦显示器」进入显示器特写，Esc 或「返回主板」恢复相机；返回时保持 OrbitControls 最小距离连续。
+- 该挂载是可视化/会话层，CPU Core 的 MMIO 地址映射仍按 Codex 基线固定；没有修改 CPU Core、Trace 语义、地址映射或显示协议。真正 fault 级热拔插解映射需要单独的 Core 任务。
 
 ## ARTEMIS 实测与验收入口
 

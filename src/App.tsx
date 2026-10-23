@@ -17,6 +17,7 @@ import { WorkbenchLayout } from './components/WorkbenchLayout'
 import { JellyRadio } from './components/react-bits/JellyRadio'
 import { GlideSelect } from './components/GlideSelect'
 import { PanelEdgeBlur } from './components/PanelEdgeBlur'
+import { PeripheralDock } from './components/PeripheralDock'
 
 const CpuScene = lazy(() => import('./scenes/CpuScene'))
 const GradientASCII = lazy(() => import('./components/react-bits/GradientASCII'))
@@ -93,7 +94,7 @@ export default function App() {
       <WorkbenchLayout open={open} program={<AnimatePresence>{open && <ScenePresence key="program" id="program-region" label="程序与指令编辑" as="aside" className="program-panel panel-scroll" delay={MOTION.ui.stagger * 2}>
           <PanelEdgeBlur position="top" /><ProgramPanel /><PanelEdgeBlur position="bottom" />
         </ScenePresence>}</AnimatePresence>} scene={<>
-          <AnimatePresence>{open && <ScenePresence key="toolbar" className="scene-toolbar" delay={MOTION.ui.stagger * 3}><span><span className="tiny-dot" />Teaching plane <small>2.5D</small></span><button className="text-button" onClick={resetView}>↺ 恢复视角</button></ScenePresence>}</AnimatePresence>
+          <AnimatePresence>{open && <ScenePresence key="toolbar" className="scene-toolbar" delay={MOTION.ui.stagger * 3}><span><span className="tiny-dot" />Teaching plane <small>2.5D</small></span><span className="scene-toolbar-actions"><PeripheralDock /><button className="text-button" onClick={resetView}>↺ 恢复视角</button></span></ScenePresence>}</AnimatePresence>
           <div ref={anchorRef} className="scene-viewport" data-testid="scene-anchor" aria-label={open ? 'CPU 三维交互区域' : '芯片三维交互区域'} />
           <div className="scene-bottom"><span>拖拽旋转 <span className="separator">·</span> 滚轮缩放 <span className="separator">·</span> 右键平移</span>{open && <span className="scene-legend" aria-label="信号语义图例"><i />数据<i className="control" />控制<i className="writeback" />写回</span>}</div>
           </>} details={<><PanelEdgeBlur position="top" /><AnimatePresence>{open && <ScenePresence key="controls" className="execution-presence" delay={MOTION.ui.stagger * 3}>

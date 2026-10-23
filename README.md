@@ -2,7 +2,7 @@
 
 DeepSeek V3 芯片视觉已在本分支完成：完整封装、电影化解构与可读的教学电路板共用既有单 CPU Canvas、连续转场和真实教学数据通路。实现、截图与验证见 [CHIP_V3_VISUAL](docs/CHIP_V3_VISUAL.md)；V2 集成记录见 [CHIP_V2_INTEGRATION](docs/CHIP_V2_INTEGRATION.md)。原型目录为冻结参考，其 UI、DemoModules 和相机控制不进入正式场景。
 
-基于真实 RV32I 单周期架构的三维交互教学网站。Sprint 05 支持 **40 条 RV32I 基础整数指令**（FENCE 为有序屏障空操作，ECALL/EBREAK 为非退休 Trap 停止），最多 10 个本地项目、按需分配的最多 262144 字 / 1 MiB ROM、1/64/256 KiB RAM、IndexedDB 自动保存和 JSON / HEX 备份、RTL 对应的软件信号快照和连续可逆的芯片展开。指令表和三个小程序见 [Sprint 05](docs/SPRINT_05_RV32I.md)。
+基于真实 RV32I 单周期架构的三维交互教学网站。Sprint 05 支持 **40 条 RV32I 基础整数指令**（FENCE 为有序屏障空操作，ECALL/EBREAK 为非退休 Trap 停止），最多 10 个本地项目、按需分配的最多 262144 字 / 1 MiB ROM、1/64/256 KiB 或 1 MiB RAM、IndexedDB 自动保存和 JSON / HEX 备份、RTL 对应的软件信号快照和连续可逆的芯片展开。指令表和三个小程序见 [Sprint 05](docs/SPRINT_05_RV32I.md)。
 
 仓库：[JouCristian/Silicon-Life](https://github.com/JouCristian/Silicon-Life)，生产环境：[silicon-life.vercel.app](https://silicon-life.vercel.app/)。PR #1、#2、#3 已合并；`feat/chip-v3-visual` 完整包含 V2 集成 `aae1c46` 和 V3 人工验收冻结 `f218079`。GitHub 集成范围、历史原型归档、分支禁部署与标签策略见 [V3_GITHUB_INTEGRATION](docs/V3_GITHUB_INTEGRATION.md)。本地冻结 Tag 保留，不自动合并或部署。未连接 v0。
 
@@ -42,7 +42,7 @@ addi x3, x0, 42
 
 - 三个原有示例只读，点击「复制为我的项目」后编辑。编码器可选择全部 RV32I 操作，查看 I/R/S/B/U/J 型机器码；应用或切换项目会复位。
 - 寄存器可切有符号十进制 / 十六进制；复位后可设置 x1–x31。x0 恒为 0。
-- 数据内存可选 1 / 64 / 256 KiB，小端，LW/SW 按 4 字节对齐访问。支持 8/32 位初始数据编辑、初始 / 运行视图、DEC/HEX 和相邻字节观察；Δ 标记运行期间的差异。复位恢复用户初始 RAM 与寄存器，修改 ROM 保留配置，切换项目恢复各自独立的配置。
+- 数据内存可选 1 / 64 / 256 KiB / 1 MiB，小端，LW/SW 按 4 字节对齐访问。支持 8/32 位初始数据编辑、初始 / 运行视图、DEC/HEX 和相邻字节观察；Δ 标记运行期间的差异。复位恢复用户初始 RAM 与寄存器，独立修改 ROM 保留配置，切换项目恢复各自独立的配置。
 - 「单步指令」提交一个架构边沿，随后讲解同一快照。「暂停 / 暂停讲解」冻结播放，「继续讲解」继续快照，「回放」从取指重新观察。均不重复写回或存储。
 - 五个阶段是教学观察，**不是五个时钟周期或流水线**。脉冲时间依据示意线路长度安排，不代表真实门延迟。
 - 蓝色表示数据、浅金表示控制、青绿色表示写回；来源均为 Core 的 Trace。专业模式显示 RTL 原名信号。
@@ -70,6 +70,8 @@ addi x3, x0, 42
 7. 「运行」逐条讲解；「快速运行」跳过逐条动画，批次最多 512 条 / 约 8ms，逐帧让出主线程。两者使用同一 Core.step，只有提交产生状态，回放不重复执行。预算用尽保留 ready 状态，允许用户继续。
 
 [arithmetic.hex](examples/arithmetic.hex) 导入 ROM 后得到 x3=12。导入 [memory-init.hex](examples/memory-init.hex) 时，RAM 选择 **32-bit、起始字节地址 0**，再创建一条 `lw x3, 64(x0)`（`04002183`），得到 x3=42。详细格式见 [HEX_FORMAT](docs/HEX_FORMAT.md)，存储和容量设计见 [ARCHITECTURE](docs/ARCHITECTURE.md)，性能实测见 [VALIDATION](docs/VALIDATION.md)。
+
+程序与静态数据共用一个 Logisim 镜像时，在「ROM HEX 导入 / 导出 → 装载方式」选择「统一内存镜像导入（Logisim 兼容）」，再选 HEX 并确认。一次性替换 ROM 和初始 RAM（自动设为 1 MiB），32 位字地址乘 4 映射到 CPU 字节地址；保留初始寄存器并复位执行。运行 RAM 的写入不会改写 ROM。ARTEMIS 原样本完整加载 142272 字，栈 `0x93000` 可读写；程序在 PC `0x1520` 写 MMIO `0x20000000` 时停止，显示器外设尚未实现，加载成功不代表可以输出图像。
 
 ROM / RAM 共用自定义文件按钮，文件名单独省略显示并可悬停查看完整名称，支持重新选择同名文件。所有解析只在本机进行，无后端。React Bits 保持 Sprint 03 的集成；V3 只升级 3D 场景视觉，不改动其语义与 Canvas 生命周期。[来源与许可证](docs/THIRD_PARTY.md)。MMIO 仍仅架构规划。
 

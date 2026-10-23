@@ -1,11 +1,11 @@
 import { initialState } from '../core/cpu'
-import { createMemory, type DataMemory } from '../core/memory'
+import { createMemory, MAX_MEMORY_BYTES, type DataMemory } from '../core/memory'
 import { InstructionROM, MAX_ROM_WORDS } from '../core/rom'
 import { validateProgram } from '../io/program'
 
 export const PROJECT_SCHEMA = 1
 export const MAX_PROJECTS = 10
-export const RAM_SIZES = [1024, 65536, 262144] as const
+export const RAM_SIZES = [1024, 65536, 262144, MAX_MEMORY_BYTES] as const
 export interface Project {
   readonly schemaVersion: 1
   readonly id: string
@@ -38,7 +38,7 @@ export function projectRecord(project: Project): ProjectRecord {
 function source(value: unknown, kind: 'word' | 'byte' | 'register'): ArrayLike<number> {
   if (!(Array.isArray(value) || value instanceof Uint32Array || value instanceof Uint8Array)) throw new Error(`项目 ${kind} 数据格式无效`)
   const max = kind === 'byte' ? 255 : 0xffffffff
-  if (value.length > (kind === 'byte' ? 262144 : kind === 'word' ? MAX_ROM_WORDS : 32)) throw new Error('项目数据超出容量')
+  if (value.length > (kind === 'byte' ? MAX_MEMORY_BYTES : kind === 'word' ? MAX_ROM_WORDS : 32)) throw new Error('项目数据超出容量')
   for (const n of value) if (!Number.isInteger(n) || n < 0 || n > max) throw new Error(`项目 ${kind} 数据超出范围`)
   return value
 }
@@ -55,9 +55,10 @@ export function restoreProject(value: unknown): Project {
   return Object.freeze({ schemaVersion: PROJECT_SCHEMA, id: p.id, name: projectName(p.name), createdAt: Number(p.createdAt), updatedAt: Number(p.updatedAt),
     instructionROM: validateProgram(words, false), initialRAM: createMemory(bytes), initialRegisters: Object.freeze(Array.from(registers)), ramSize: bytes.length })
 }
-export const MAX_PROJECT_JSON_BYTES = 4 * 1024 * 1024
+// Covers a full 1 MiB ROM plus 1 MiB RAM even as worst-case decimal JSON arrays.
+export const MAX_PROJECT_JSON_BYTES = 8 * 1024 * 1024
 export function importProjectJSON(text: string): Project {
-  if (new TextEncoder().encode(text).length > MAX_PROJECT_JSON_BYTES) throw new Error('项目 JSON 不得超过 4 MiB')
+  if (new TextEncoder().encode(text).length > MAX_PROJECT_JSON_BYTES) throw new Error('项目 JSON 不得超过 8 MiB')
   return restoreProject(JSON.parse(text))
 }
 export function exportProjectJSON(project: Project): string {

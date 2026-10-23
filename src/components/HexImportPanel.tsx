@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { hex } from '../core/isa'
 import { InstructionROM } from '../core/rom'
 import { exportHex, MAX_HEX_BYTES, type CellWidth, type HexImage } from '../io/hex'
-import { memoryCells, memoryImage, parseValue } from '../io/memoryImage'
+import { memoryCells, memoryImage, parseValue, unifiedMemoryImage } from '../io/memoryImage'
 import { instructionRow, MAX_PROGRAM_WORDS, validateProgram } from '../io/program'
 import { parseFileWorker } from '../io/workerClient'
 import { downloadText } from '../io/download'
@@ -11,13 +11,14 @@ import { HexFilePicker } from './HexFilePicker'
 import { GlideSelect } from './GlideSelect'
 
 export function HexImportPanel({ target }: { target: 'ROM' | 'RAM' }) {
-  const { program, initialMemory, importProgram, setInitialMemory, cpu, running, playing, fastRunning, storageReady } = useLabView()
+  const { program, initialMemory, importProgram, importUnifiedImage, setInitialMemory, cpu, running, playing, fastRunning, storageReady } = useLabView()
   const [file, setFile] = useState<{ name: string; text: string }>(), [name, setName] = useState('')
   const [image, setImage] = useState<HexImage>(), [width, setWidth] = useState<CellWidth>(32), [offset, setOffset] = useState('0')
-  const [append, setAppend] = useState(false), [strict, setStrict] = useState(false)
+  const [mode, setMode] = useState('replace'), [strict, setStrict] = useState(false)
   const [message, setMessage] = useState(''), [readError, setReadError] = useState(''), [reading, setReading] = useState(false)
   const generation = useRef(0), controller = useRef<AbortController | undefined>(undefined)
   const ram = target === 'RAM', capacity = initialMemory.length
+  const append = mode === 'append', unified = !ram && mode === 'unified'
   const locked = !storageReady || ram && (cpu.retired !== 0 || running || playing || fastRunning)
   useEffect(() => {
     if (!file) return
@@ -34,11 +35,11 @@ export function HexImportPanel({ target }: { target: 'ROM' | 'RAM' }) {
     if (!image) return undefined
     try {
       const address = ram ? parseValue(offset, 32) : 0
-      const memory = ram ? memoryImage(image, address, capacity) : undefined
-      if (!ram) validateProgram(append ? [...program, ...image.values] : image.values, strict)
+      const memory = unified ? unifiedMemoryImage(image).memory : ram ? memoryImage(image, address, capacity) : undefined
+      if (!ram && !unified) validateProgram(append ? [...program, ...image.values] : image.values, strict)
       return { image, memory, address, error: '' }
     } catch (e) { return { error: (e as Error).message } }
-  }, [image, ram, offset, append, program, capacity, strict])
+  }, [image, ram, unified, offset, append, program, capacity, strict])
   return <details className="hex-panel"><summary>{target} HEX 导入 / 导出</summary>
     <HexFilePicker label={`${target} HEX 文件`} name={name} disabled={!storageReady} onFile={async selected => {
       const token = ++generation.current; controller.current?.abort()
@@ -59,11 +60,11 @@ export function HexImportPanel({ target }: { target: 'ROM' | 'RAM' }) {
     /></label><label>起始字节地址<input aria-label="RAM 装载地址" value={offset} onChange={e => { setOffset(e.target.value); setMessage('') }} /></label></div>
       : <><label className="import-strategy">装载方式<GlideSelect
         ariaLabel="ROM 装载方式"
-        value={append ? 'append' : 'replace'}
-        onChange={value => { setAppend(value === 'append'); setMessage('') }}
-        options={[{ value: 'replace', label: '替换程序' }, { value: 'append', label: '追加到末尾' }]}
-        menuWidth={180}
-      /></label><label className="strict-import"><input type="checkbox" checked={strict} onChange={e => setStrict(e.target.checked)} />严格模式：拒绝未支持指令</label></>}
+        value={mode}
+        onChange={value => { setMode(value); setMessage('') }}
+        options={[{ value: 'replace', label: '替换程序' }, { value: 'append', label: '追加到末尾' }, { value: 'unified', label: '统一内存镜像导入（Logisim 兼容）' }]}
+        menuWidth={300}
+      /></label>{unified ? <p className="field-help">同一镜像替换 ROM 和初始 RAM（自动设为 1 MiB），起点均为 0；32 位字地址 × 4 = CPU 字节地址，空洞及剩余 RAM 清零。允许程序与静态数据混合，不逐字要求为指令。保留初始寄存器并复位执行。运行时 ROM / RAM 独立，写 RAM 不改写 ROM；不提供 MMIO / 显示器。</p> : <label className="strict-import"><input type="checkbox" checked={strict} onChange={e => setStrict(e.target.checked)} />严格模式：拒绝未支持指令</label>}</>}
     {reading && <p role="status" className="field-help">正在解析，请稍候…</p>}
     {!ram && preview?.image && <p className="field-help">HEX 解析成功，尚未装载。确认后保留全部机器码；CPU 支持 RV32I，ECALL/EBREAK 停止，M/C/A、CSR、FENCE.I、MMIO 与操作系统未实现，完整程序可执行性需另行检查。</p>}
     {preview?.image && <div className="hex-preview" data-testid={`${target.toLowerCase()}-preview`}><p>{preview.image.format} · {width}-bit{preview.image.byteOrder ? ` · ${preview.image.byteOrder}` : ''} · {preview.image.values.length.toLocaleString()} 单元</p>{ram && <p>单元 0 → CPU 字节地址 {hex(preview.address ?? 0)}</p>}
@@ -75,12 +76,13 @@ export function HexImportPanel({ target }: { target: 'ROM' | 'RAM' }) {
         if (!preview?.image) return
         const count = preview.image.values.length
         if (ram) setInitialMemory(preview.memory!)
+        else if (unified) importUnifiedImage(preview.image)
         else importProgram(preview.image.values, append, strict)
-        setFile(undefined); setImage(undefined); setMessage(ram ? `初始 RAM 已更新：${count.toLocaleString()} 单元` : '')
+        setFile(undefined); setImage(undefined); setMessage(ram ? `初始 RAM 已更新：${count.toLocaleString()} 单元` : unified ? `统一镜像加载成功：${count.toLocaleString()} 个字，ROM 与 1 MiB 初始 RAM 已同步初始化；不代表可完整运行。` : '')
       } catch (e) { setReadError((e as Error).message) }
-    }}>确认导入 {target}</button><button className="button subtle" disabled={!ram && !program.length} onClick={() => downloadText(ram ? 'initial-memory.hex' : 'program.hex', exportHex(ram ? memoryCells(initialMemory, width) : program, width))}>导出 {target}</button></div>
+    }}>确认导入 {unified ? '统一镜像（ROM + RAM）' : target}</button><button className="button subtle" disabled={!ram && !program.length} onClick={() => downloadText(ram ? 'initial-memory.hex' : 'program.hex', exportHex(ram ? memoryCells(initialMemory, width) : program, width))}>导出 {target}</button></div>
     {locked && ram && <p className="field-help">请先复位 CPU，再更新初始 RAM；运行 RAM 将从初始配置重新开始。</p>}
     {message && <p className="field-help" role="status">{message}</p>}
-    <details className="format-help"><summary>格式与导入说明</summary><p className="field-help">支持 v2.0 raw、纯十六进制、v3.0 hex words/bytes plain/addressed，最大 4 MiB。words 地址按所选数据单元计数；bytes 地址按字节计数，默认 big-endian，可声明 little-endian。文件先转换为所选单元，再按 CPU 小端装载；空洞补零，末尾不足一个单元的完整字节补零，同一地址后写覆盖前写。addressed 行中双空白后的 ASCII 列忽略。{ram ? '起始地址按 CPU 字节计算；确认后替换初始 RAM，未指定区域清零。' : '确认后复位执行，保留本项目的初始 RAM 和寄存器。原始未支持机器码可以保存，运行到该处会停止；追加不重写 BEQ 偏移。'}</p></details>
+    <details className="format-help"><summary>格式与导入说明</summary><p className="field-help">支持 v2.0 raw、纯十六进制、v3.0 hex words/bytes plain/addressed，最大 4 MiB。words 地址按所选数据单元计数；bytes 地址按字节计数，默认 big-endian，可声明 little-endian。文件先转换为所选单元，再按 CPU 小端装载；空洞补零，末尾不足一个单元的完整字节补零，同一地址后写覆盖前写。addressed 行中双空白后的 ASCII 列忽略。{ram ? '起始地址按 CPU 字节计算；确认后替换初始 RAM，未指定区域清零。' : '独立导入保留初始 RAM；统一镜像同时替换 ROM / RAM。两者均保留初始寄存器并复位执行。原始未支持机器码可以保存，运行到该处会停止；追加不重写 BEQ 偏移。'}</p></details>
   </details>
 }

@@ -53,7 +53,7 @@ export function ProjectControls() {
         setFileName(file?.name ?? ''); setError(''); setReading(!!file)
         if (!file) return
         try {
-          if (file.size > MAX_PROJECT_JSON_BYTES) throw new Error('项目 JSON 不得超过 4 MiB')
+          if (file.size > MAX_PROJECT_JSON_BYTES) throw new Error('项目 JSON 不得超过 8 MiB')
           const text = await file.text(); if (abort.signal.aborted) return
           const result = await parseFileWorker(text, 32, MAX_PROGRAM_WORDS, 'project', abort.signal)
           if (!abort.signal.aborted) importProject(restoreProject(result.project))

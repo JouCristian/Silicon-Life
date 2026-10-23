@@ -1,4 +1,5 @@
 import { MAX_ROM_WORDS, type ProgramWords } from '../core/rom'
+import { MAX_MEMORY_BYTES } from '../core/memory'
 export const MAX_HEX_BYTES = 4 * 1024 * 1024
 export type CellWidth = 8 | 32
 export type HexByteOrder = 'big-endian' | 'little-endian'
@@ -77,7 +78,7 @@ function parseV3(source: string, width: CellWidth, maxValues: number): HexImage 
 /** Local-file format policy, independent of DOM and CPU execution. */
 export function parseHex(text: string, width: CellWidth = 32, maxValues = MAX_ROM_WORDS): HexImage {
   if (new TextEncoder().encode(text).length > MAX_HEX_BYTES) throw new Error('HEX 文件不得超过 4 MiB')
-  if (width !== 8 && width !== 32 || !Number.isInteger(maxValues) || maxValues < 1 || maxValues > 262144) throw new Error('无效的 HEX 容量或数据宽度')
+  if (width !== 8 && width !== 32 || !Number.isInteger(maxValues) || maxValues < 1 || maxValues > (width === 8 ? MAX_MEMORY_BYTES : MAX_ROM_WORDS)) throw new Error('无效的 HEX 容量或数据宽度')
   const clean = text.replace(/^\uFEFF/, '').replace(/#[^\r\n]*/g, '').trim()
   if (/^v3\./i.test(clean)) return parseV3(clean, width, maxValues)
   if (clean.startsWith(':')) throw new Error('不支持 Intel HEX')

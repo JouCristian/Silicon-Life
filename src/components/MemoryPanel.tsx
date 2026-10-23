@@ -64,7 +64,7 @@ export function MemoryPanel() {
           if (size < initialMemory.length && !window.confirm('缩小 RAM 会丢弃超出容量的初始数据，是否继续？')) return
           act(() => resizeMemory(size))
         }}
-        options={RAM_SIZES.map(size => ({ value: String(size), label: `${size / 1024} KiB` }))}
+        options={RAM_SIZES.map(size => ({ value: String(size), label: size === 1048576 ? '1 MiB' : `${size / 1024} KiB` }))}
         menuWidth={180}
       /></label>
       <div className="memory-edit"><h3>编辑初始 RAM</h3><div className="editor-fields"><label>写入宽度<GlideSelect

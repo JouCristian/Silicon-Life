@@ -1,7 +1,8 @@
-import { createMemory, MEMORY_BYTES, readWord, writeWord, type DataMemory } from '../core/memory'
+import { createMemory, MAX_MEMORY_BYTES, MEMORY_BYTES, readWord, writeWord, type DataMemory } from '../core/memory'
 import { PagedMemory } from '../core/pagedMemory'
 import { u32 } from '../core/isa'
 import type { CellWidth, HexImage } from './hex'
+import { validateProgram } from './program'
 
 export function parseValue(text: string, width: CellWidth): number {
   const source = text.trim()
@@ -40,4 +41,14 @@ export function memoryImage(image: HexImage, address = 0, capacity = MEMORY_BYTE
 
 export function memoryCells(memory: DataMemory, width: CellWidth): readonly number[] {
   return width === 8 ? [...memory] : Array.from({ length: memory.length / 4 }, (_, i) => readWord(memory, i * 4))
+}
+
+/** Two independent initial snapshots, not a runtime ROM/RAM alias. Normalize
+ * once in the parser: logical word i maps to CPU byte address 4*i in both. */
+export function unifiedMemoryImage(image: HexImage) {
+  if (image.width !== 32) throw new Error('统一内存镜像须解析为 32 位字')
+  if (!image.values.length) throw new Error('统一内存镜像不能为空')
+  const program = validateProgram(image.values, false) // static data is legitimate image content
+  const memory = memoryImage({ ...image, values: program }, 0, MAX_MEMORY_BYTES)
+  return { program, memory }
 }

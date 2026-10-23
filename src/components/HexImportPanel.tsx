@@ -64,9 +64,9 @@ export function HexImportPanel({ target }: { target: 'ROM' | 'RAM' }) {
         onChange={value => { setMode(value); setMessage('') }}
         options={[{ value: 'replace', label: '替换程序' }, { value: 'append', label: '追加到末尾' }, { value: 'unified', label: '统一内存镜像导入（Logisim 兼容）' }]}
         menuWidth={300}
-      /></label>{unified ? <p className="field-help">同一镜像替换 ROM 和初始 RAM（自动设为 1 MiB），起点均为 0；32 位字地址 × 4 = CPU 字节地址，空洞及剩余 RAM 清零。允许程序与静态数据混合，不逐字要求为指令。保留初始寄存器并复位执行。运行时 ROM / RAM 独立，写 RAM 不改写 ROM；不提供 MMIO / 显示器。</p> : <label className="strict-import"><input type="checkbox" checked={strict} onChange={e => setStrict(e.target.checked)} />严格模式：拒绝未支持指令</label>}</>}
+      /></label>{unified ? <p className="field-help">同一镜像替换 ROM 和初始 RAM（自动设为 1 MiB），起点均为 0；32 位字地址 × 4 = CPU 字节地址，空洞及剩余 RAM 清零。允许程序与静态数据混合，不逐字要求为指令。保留初始寄存器并复位执行。运行时 ROM / RAM 独立，写 RAM 不改写 ROM；支持 Logisim RGB 显示 MMIO 的 SW 写入，其余外设未实现。</p> : <label className="strict-import"><input type="checkbox" checked={strict} onChange={e => setStrict(e.target.checked)} />严格模式：拒绝未支持指令</label>}</>}
     {reading && <p role="status" className="field-help">正在解析，请稍候…</p>}
-    {!ram && preview?.image && <p className="field-help">HEX 解析成功，尚未装载。确认后保留全部机器码；CPU 支持 RV32I，ECALL/EBREAK 停止，M/C/A、CSR、FENCE.I、MMIO 与操作系统未实现，完整程序可执行性需另行检查。</p>}
+    {!ram && preview?.image && <p className="field-help">HEX 解析成功，尚未装载。确认后保留全部机器码；CPU 支持 RV32I，ECALL/EBREAK 停止，支持 Logisim RGB 显示 SW；M/C/A、CSR、FENCE.I、其他 MMIO 与操作系统未实现，完整程序可执行性需另行检查。</p>}
     {preview?.image && <div className="hex-preview" data-testid={`${target.toLowerCase()}-preview`}><p>{preview.image.format} · {width}-bit{preview.image.byteOrder ? ` · ${preview.image.byteOrder}` : ''} · {preview.image.values.length.toLocaleString()} 单元</p>{ram && <p>单元 0 → CPU 字节地址 {hex(preview.address ?? 0)}</p>}
       <ol>{preview.image.values.slice(0, 8).map((word, i) => <li key={i}><code>{hex(word)}</code><span>{ram ? `字节 ${(preview.address ?? 0) + i * width / 8}` : `${hex((append ? program.length * 4 : 0) + i * 4)} · ${instructionRow(preview.image.values, i).assembly}`}</span></li>)}</ol>
       {preview.image.values.length > 8 && <p>另有 {(preview.image.values.length - 8).toLocaleString()} 单元</p>}</div>}

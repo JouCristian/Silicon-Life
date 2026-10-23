@@ -1,5 +1,13 @@
 # RTL → Web 映射
 
+## Sprint 05.5 · 显示 MMIO
+
+新增宿主 Logisim RGB 设备：`0x20000000…0x2003ffff`、256×256、低 24 位 RGB888、对齐 SW 写像素即更新。依据为用户原 `minirv.circ` 的 LSU 比较器、VGA_WE 门控、X/Y/Data 分线器及 RGB Video 组件，并以原反汇编和 ARTEMIS 实际访问验证；完整证据与限制见 [MMIO_DISPLAY](MMIO_DISPLAY.md)。
+
+`cpu_top.v` 的 `dmem_addr/dmem_wdata/dmem_we/dmem_wstrb` 仍是 CPU 外部总线，没有新增或编造 RTL 信号。`CpuState.display`、`memoryAccess.space` 和 `mmioWrite` 是软件外设/教学元数据，不是 RTL 中已存在的显示控制器。MMIO 不修改 RAM，也不沿冻结教学板 RAM 连线代演；独立面板显示真实设备输出。原 RTL / Logisim 文件只读未改，未做外设 RTL 联合仿真。
+
+以下章节中“MMIO 未实现”是对应历史 Sprint 的记录，当前新增的显示 SW 协议以本节为准；其余外设、显示读回及窄写未实现。
+
 ## Sprint 05 当前状态（2026-10-23）
 
 软件已扩展至 40 条 RV32I 基础整数指令。重新只读读取下表全部 8 个 RTL 文件，其 SHA-256 与本文历史基线一致；RTL 原件本身已覆盖全部相应 ALU、分支、跳转、字节/半字访存和系统停止控制，因此本轮没有修改 FPGA 工程。`iverilog -g2012 -I rtl/cpu -s cpu_top ...` 语法编译通过；无 Testbench 联合仿真或等价验证。

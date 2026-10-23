@@ -10,7 +10,7 @@ import { GlideSelect } from './GlideSelect'
 
 export function MemoryPanel() {
   const { cpu, initialMemory, setInitialMemory, resizeMemory, playing, running, fastRunning, programId, activeProjectId, history } = useLabView()
-  const recentWrites = useMemo(() => [...new Set(history.flatMap(trace => trace.memoryAccess?.kind === 'store' ? [trace.memoryAccess.address] : []))].slice(-8), [history])
+  const recentWrites = useMemo(() => [...new Set(history.flatMap(trace => trace.memoryAccess?.kind === 'store' && trace.memoryAccess.space === 'ram' ? [trace.memoryAccess.address] : []))].slice(-8), [history])
   const [start, setStart] = useState(64), [browse, setBrowse] = useState('64')
   const [view, setView] = useState<'runtime' | 'initial'>('runtime'), [radix, setRadix] = useState('dec')
   const [viewWidth, setViewWidth] = useState<CellWidth>(32), [width, setWidth] = useState<CellWidth>(32)

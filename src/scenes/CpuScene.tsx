@@ -258,7 +258,7 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
       case 'mux': return `${i32(s.alu_b)}`
       case 'alu': return `${ALU_LABELS[s.alu_op]}(${i32(s.alu_a)}, ${i32(s.alu_b)}) = ${i32(s.alu_result)}`
       case 'wb': return `${i32(s.wb_data)}`
-      case 'dmem': return trace.memoryAccess ? `${trace.memoryAccess.kind === 'load' ? 'R' : 'W'} [${s.dmem_addr}] = ${i32(trace.memoryAccess.data)}` : '未访问'
+      case 'dmem': return trace.memoryAccess?.space === 'mmio' ? 'MMIO → 显示设备（RAM 未写入）' : trace.memoryAccess ? `${trace.memoryAccess.kind === 'load' ? 'R' : 'W'} [${s.dmem_addr}] = ${i32(trace.memoryAccess.data)}` : '未访问'
       case 'branch': return s.branch ? `${trace.instruction.op}(${hex(s.rs1_data)}, ${hex(s.rs2_data)}) → ${s.branch_taken}` : '未参与'
       case 'nextpc': return hex(s.next_pc)
     }

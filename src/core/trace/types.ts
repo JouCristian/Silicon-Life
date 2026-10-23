@@ -1,5 +1,6 @@
 import type { Instruction } from '../isa'
 import type { DataMemory } from '../memory'
+import type { DisplayState, DisplayWrite } from '../devices/logisimDisplay'
 
 export const PHASES = ['fetch', 'decode', 'execute', 'memory', 'writeback'] as const
 export type Phase = typeof PHASES[number]
@@ -12,6 +13,7 @@ export interface CpuState {
   readonly pc: number
   readonly registers: readonly number[]
   readonly memory: DataMemory
+  readonly display: DisplayState
   readonly retired: number
   readonly status: 'ready' | 'halted' | 'fault'
   readonly reason?: string
@@ -95,5 +97,7 @@ export interface ExecutionTrace {
   /** Paths absent from the frozen teaching topology are disclosed, never
    * animated along an unrelated wire. Values remain available in signals. */
   readonly visualizationOmissions?: readonly string[]
-  readonly memoryAccess?: { readonly kind: 'load' | 'store'; readonly address: number; readonly data: number; readonly byteStrobes: number; readonly width?: 8 | 16 | 32 }
+  readonly memoryAccess?: { readonly kind: 'load' | 'store'; readonly address: number; readonly data: number; readonly byteStrobes: number; readonly width?: 8 | 16 | 32; readonly space: 'ram' | 'mmio' }
+  /** Host peripheral metadata, not additional cpu_top.v control signals. */
+  readonly mmioWrite?: DisplayWrite
 }

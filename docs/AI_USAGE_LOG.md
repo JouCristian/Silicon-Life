@@ -1,5 +1,13 @@
 # AI 使用记录
 
+## 2026-10-23 · Sprint 05.5 显示设备
+
+- 先本地提交已验收的统一镜像功能为 `b85419b`，新建 `feat/sprint-05-5-mmio-display`。
+- 只读分析原 `minirv.circ`、`vga.txt`、两个图像转换脚本及 `rtl/cpu/cpu_top.v`，确认 256×256 RGB888 与 `0x20000000…0x2003ffff` 的 SW 像素协议；没有凭空添加同步寄存器或改动用户工程。
+- 实现独立不可变页共享 framebuffer、真实 MMIO 总线与设备 Trace、简单 2D 显示面板；暂停回放不重复提交，复位清屏。未改冻结 V3 几何、拓扑、相机或材质，仅修正 MMIO 时的 RAM 标签说明。
+- ARTEMIS 实际执行 623497 条到自身 halt 入口，65536 次 SW 覆盖整帧，与镜像原图逐字节/hash 一致。6 个相关文件 200 项测试通过，类型检查通过；本地 Chrome 预览验证实际像素写入，无完整 E2E。
+- 仅支持显示对齐 SW，其他外设、读回/窄写和硬件显示控制器未实现。未 Push、Merge 或部署。
+
 ## 2026-10-23 · 1 MiB RAM 与统一镜像导入
 
 - 在 `feat/unified-memory-image` 扩容 RAM 分页、HEX 字节单元、项目校验及 JSON 备份（8 MiB）；schema 保持 1。统一导入通过一次 Store 提交替换 ROM / 初始 RAM 并复位，保留独立导入、初始寄存器及项目身份。未修改 CPU 执行语义或 V3 视觉。

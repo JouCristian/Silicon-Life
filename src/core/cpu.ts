@@ -2,12 +2,13 @@ import { decode, immediate, u32 } from './isa'
 import { createMemory, readWord, writeWord, type DataMemory } from './memory'
 import { phasesFor, transfersFor } from './trace/transfers'
 import type { CpuState, ExecutionTrace, SignalSnapshot } from './trace/types'
+import { initialDisplay, isDisplayAddress, writeDisplay } from './devices/logisimDisplay'
 
 export const MAX_STEPS = 1000
 export const ALU_LABELS = ['ADD', 'SUB', 'SLL', 'SLT', 'SLTU', 'XOR', 'SRL', 'SRA', 'OR', 'AND'] as const
 export function initialState(registers: readonly number[] = Array(32).fill(0), memory: DataMemory = createMemory()): CpuState {
   if (registers.length !== 32 || registers.some(n => !Number.isInteger(n) || n < -2147483648 || n > 4294967295)) throw new Error('初始寄存器必须包含 32 个有效的 32 位整数')
-  return Object.freeze({ pc: 0, registers: Object.freeze(registers.map((n, i) => i === 0 ? 0 : u32(n))), memory: createMemory(memory), retired: 0, status: 'ready' })
+  return Object.freeze({ pc: 0, registers: Object.freeze(registers.map((n, i) => i === 0 ? 0 : u32(n))), memory: createMemory(memory), display: initialDisplay(), retired: 0, status: 'ready' })
 }
 function fault(state: CpuState, reason: string, source: 'rtl' | 'host', cause?: number) {
   return { state: Object.freeze({ ...state, status: 'fault' as const, reason, fault: Object.freeze({ source, cause }) }) }
@@ -75,7 +76,9 @@ export function step(state: CpuState, program: ArrayLike<number>): { state: CpuS
   // All faults are checked before either memory or a register can be written.
   if (!system && redirect && target % 4) return fault(state, '指令目标地址未按 4 字节对齐', 'rtl', 0)
   if ((load || store) && result % bytes) return fault(state, `${instruction.op} 地址未按 ${bytes} 字节对齐`, 'rtl', load ? 4 : 6)
-  if ((load || store) && result + bytes > state.memory.length) return fault(state, '数据地址超出宿主内存范围', 'host')
+  const displayAccess = (load || store) && isDisplayAddress(result, bytes)
+  if (displayAccess && (!store || bytes !== 4)) return fault(state, '显示 MMIO 当前仅支持对齐的 32 位 SW；未实现读回或 SB/SH 协议', 'host')
+  if ((load || store) && !displayAccess && result + bytes > state.memory.length) return fault(state, '数据地址超出宿主内存范围', 'host')
   const aligned = result - result % 4, lane = result % 4, laneShift = lane * 8
   const dmem_rdata = aligned + 3 < state.memory.length ? readWord(state.memory, aligned) : 0
   const shifted = dmem_rdata >>> laneShift
@@ -93,12 +96,13 @@ export function step(state: CpuState, program: ArrayLike<number>): { state: CpuS
     after = fault(state, reason, 'rtl', system_cause).state
     trapInfo = Object.freeze({ cause: system_cause, reason })
   } else {
-    const memory = store ? writeWord(state.memory, aligned, dmem_wdata, dmem_wstrb) : state.memory
+    const memory = store && !displayAccess ? writeWord(state.memory, aligned, dmem_wdata, dmem_wstrb) : state.memory
+    const display = displayAccess ? writeDisplay(state.display, result, dmem_wdata) : state.display
     const registers = [...state.registers]
     if (reg_write && rd !== 0) registers[rd] = wb_data
     registers[0] = 0
     const end = program[normal_next_pc / 4] === undefined
-    after = Object.freeze({ pc: normal_next_pc, registers: Object.freeze(registers), memory, retired: state.retired + 1,
+    after = Object.freeze({ pc: normal_next_pc, registers: Object.freeze(registers), memory, display, retired: state.retired + 1,
       status: end ? 'halted' : 'ready', ...(end ? { reason: '程序执行完成' } : {}) })
   }
   const signals: SignalSnapshot = Object.freeze({ pc_value: state.pc, pc_plus4: pcPlus4, next_pc: after.pc,
@@ -109,8 +113,12 @@ export function step(state: CpuState, program: ArrayLike<number>): { state: CpuS
     branch: branch ? 1 : 0, branch_op: f3, branch_taken, redirect, target, normal_next_pc,
     jump: jump ? 1 : 0, jalr: jalr ? 1 : 0, illegal: 0, system_trap: system ? 1 : 0, system_cause,
     fault: system ? 1 : 0, fault_cause: system ? system_cause : 0, trap: system ? 1 : 0, trap_cause: system ? system_cause : 0 })
-  const transfers = transfersFor(instruction, signals)
+  const routes = transfersFor(instruction, signals)
+  // The frozen teaching topology has RAM but no peripheral geometry. Do not
+  // animate a display access into its RAM module as if RAM had been written.
+  const transfers = displayAccess ? Object.freeze(routes.filter(t => t.from !== 'dmem' && t.to !== 'dmem')) : routes
   const omissions = [
+    ...(displayAccess ? ['本次写入独立显示 MMIO；外设未在冻结教学板布线，未沿 RAM 连线代演'] : []),
     ...(upper ? ['ALU A 的 PC/零源选择未在冻结教学板单独布线'] : []),
     ...(jump ? ['PC+4 到 WB_PC4 的专用线及跳转控制未单独布线'] : []),
     ...(jalr ? ['JALR 的 ALU 到 Next PC 目标通路未单独布线'] : []),
@@ -119,7 +127,8 @@ export function step(state: CpuState, program: ArrayLike<number>): { state: CpuS
     write: Object.freeze({ rd, value: wb_data, committed: !system && !!reg_write && rd !== 0 }),
     transfers, phases: phasesFor(transfers), ...(trapInfo ? { trap: trapInfo } : {}),
     ...(omissions.length ? { visualizationOmissions: Object.freeze(omissions) } : {}),
-    ...(load || store ? { memoryAccess: Object.freeze({ kind: load ? 'load' as const : 'store' as const, address: result,
+    ...(displayAccess ? { mmioWrite: after.display.lastWrite } : {}),
+    ...(load || store ? { memoryAccess: Object.freeze({ kind: load ? 'load' as const : 'store' as const, address: result, space: displayAccess ? 'mmio' as const : 'ram' as const,
       data: load ? load_data : u32(rs2_data & (bytes === 4 ? 0xffffffff : (1 << bytes * 8) - 1)), byteStrobes: dmem_wstrb, width: (bytes * 8) as 8 | 16 | 32 }) } : {}) }) }
 }
 export function run(state: CpuState, program: ArrayLike<number>, maxSteps = MAX_STEPS) {

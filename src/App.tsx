@@ -7,6 +7,7 @@ import { EXECUTION_LIMITS } from './stores/useLabStore'
 import { ProgramPanel } from './components/ProgramPanel'
 import { RegisterPanel } from './components/RegisterPanel'
 import { MemoryPanel } from './components/MemoryPanel'
+import { DisplayPanel } from './components/DisplayPanel'
 import { TracePanel } from './components/TracePanel'
 import { useLabView } from './stores/useLabStore'
 import { ScenePresence } from './components/ScenePresence'
@@ -108,7 +109,7 @@ export default function App() {
             <div className="execution-status" role="status"><span className={`status-dot ${cpu.status === 'fault' ? 'fault' : ''}`} />{status}<span className="status-detail">{cpu.reason ?? (current !== undefined ? `下一条：${instructionRow(program, cpu.pc / 4).assembly}` : '')}</span></div>
           </ScenePresence>}</AnimatePresence>
           <AnimatePresence>{open && <ScenePresence key="trace" className="trace-presence" delay={MOTION.ui.stagger * 4}><TracePanel /></ScenePresence>}</AnimatePresence></>}
-        state={<AnimatePresence>{open && <ScenePresence key="state" id="state-region" label="寄存器与数据内存" as="aside" className="state-panel panel-scroll" delay={MOTION.ui.stagger * 3}><PanelEdgeBlur position="top" /><RegisterPanel /><MemoryPanel /><PanelEdgeBlur position="bottom" /></ScenePresence>}</AnimatePresence>} />
+        state={<AnimatePresence>{open && <ScenePresence key="state" id="state-region" label="寄存器与数据内存" as="aside" className="state-panel panel-scroll" delay={MOTION.ui.stagger * 3}><PanelEdgeBlur position="top" /><DisplayPanel /><RegisterPanel /><MemoryPanel /><PanelEdgeBlur position="bottom" /></ScenePresence>}</AnimatePresence>} />
     </main>
 
     <footer className="app-footer"><span>SWUST-OC 一生一芯学习小组</span><span>{open ? '真实执行 · 快照驱动可视化' : 'Cinematic Reveal + Teaching Plane'}</span><span>Sprint 03.1 <span className="separator">/</span> 2026</span></footer>

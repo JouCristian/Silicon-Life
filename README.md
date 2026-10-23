@@ -1,108 +1,180 @@
-# 芯生 / Silicon Life
+<div align="center">
 
-Sprint 07：工作台全部 **11 个模块**均可点击内部探索，查看 RTL 功能结构与真实 Trace 信号；右侧按钮同样可进入，「返回主板」/ Esc 平滑返回。进入时暂停，可继续单步，与 MMIO 聚焦互斥并保留单 Canvas。图形是功能层级示意，外部 ROM/RAM 与 cpu_top 教学分组明确标注。见 [全部模块说明](docs/SPRINT_07_EXPLORATION.md)及 [Sprint 06 框架](docs/SPRINT_06_EXPLORATION.md)。
+# 芯生 · Silicon Life
 
-DeepSeek V3 芯片视觉已在本分支完成：完整封装、电影化解构与可读的教学电路板共用既有单 CPU Canvas、连续转场和真实教学数据通路。实现、截图与验证见 [CHIP_V3_VISUAL](docs/CHIP_V3_VISUAL.md)；V2 集成记录见 [CHIP_V2_INTEGRATION](docs/CHIP_V2_INTEGRATION.md)。原型目录为冻结参考，其 UI、DemoModules 和相机控制不进入正式场景。
+### 一条指令，看见芯片的思考。
 
-基于真实 RV32I 单周期架构的三维交互教学网站。Sprint 05 支持 **40 条 RV32I 基础整数指令**（FENCE 为有序屏障空操作，ECALL/EBREAK 为非退休 Trap 停止），最多 10 个本地项目、按需分配的最多 262144 字 / 1 MiB ROM、1/64/256 KiB 或 1 MiB RAM、IndexedDB 自动保存和 JSON / HEX 备份、RTL 对应的软件信号快照和连续可逆的芯片展开。指令表和三个小程序见 [Sprint 05](docs/SPRINT_05_RV32I.md)。
+**基于 RISC-V RV32I 单周期架构的三维交互式 CPU 教学实验平台**
 
-仓库：[JouCristian/Silicon-Life](https://github.com/JouCristian/Silicon-Life)，生产环境：[silicon-life.vercel.app](https://silicon-life.vercel.app/)。PR #1、#2、#3 已合并；`feat/chip-v3-visual` 完整包含 V2 集成 `aae1c46` 和 V3 人工验收冻结 `f218079`。GitHub 集成范围、历史原型归档、分支禁部署与标签策略见 [V3_GITHUB_INTEGRATION](docs/V3_GITHUB_INTEGRATION.md)。本地冻结 Tag 保留，不自动合并或部署。未连接 v0。
+[在线体验](https://silicon-life.vercel.app/) · [功能介绍](#核心功能) · [快速开始](#快速开始) · [技术架构](#技术架构)
 
-## 本地运行
+**2026 竞赛交付版本 · 功能冻结**
 
-要求 Node.js 22.12+ 与 npm（验证使用 Node 24）。
+</div>
 
-```sh
+---
+
+## 项目简介
+
+**芯生（Silicon Life）** 是由西南科技大学参赛团队打造的浏览器端 CPU 探索实验平台。项目将 **RV32I 指令执行、RTL 功能结构、真实执行信号和三维空间交互** 结合起来，使抽象的计算机体系结构能够被观察、拆解与理解。
+
+用户可以从芯片封装开始，进入单周期 CPU 数据通路，单步执行机器指令，观察寄存器、存储器及控制信号的变化；也可以进一步聚焦各个硬件功能模块，或通过 MMIO 外设查看程序实际写出的像素图像。
+
+> **项目定位：** 用真实的软件执行状态驱动硬件教学可视化，而不是播放预先编排的假数据。三维结构是对 RTL 功能与数据通路的教学表达，不等同于门级网表或对 FPGA 的实时联合仿真。
+
+## 作品展示
+
+<p align="center">
+  <img src="docs/validation/chip-v3/01-assembled.png" alt="芯生：三维芯片封装展示" width="92%" />
+</p>
+<p align="center"><sub>精密三维芯片封装与电影化空间呈现</sub></p>
+
+<p align="center">
+  <img src="docs/validation/chip-v3/03-teaching-plane.png" alt="芯生：CPU 教学电路板" width="92%" />
+</p>
+<p align="center"><sub>单周期 CPU 教学电路板与信号通路（V3 阶段实机截图；最新界面请以在线版本为准）</sub></p>
+
+## 核心功能
+
+| 能力 | 说明 |
+| --- | --- |
+| **RV32I 指令执行** | 支持 40 条基础整数指令的教学执行，包括算术、逻辑、移位、分支、跳转及字节/半字/字访存；提供单步、运行和快速运行 |
+| **11 个模块内部探索** | PC、Instruction Memory、Decoder、Register File、Imm Gen、MUX、ALU、WB、Data Memory、Branch Unit、Next PC 均可进入内部观察 |
+| **真实数据通路追踪** | 由 CPU 状态和 ExecutionTrace 驱动信号、寄存器及存储器视图；支持暂停、回放、逐段观察与专业信号面板 |
+| **三维交互体验** | 芯片封装拆解、连续镜头、模块聚焦和可逆返回；采用 Three.js / React Three Fiber 构建 |
+| **ROM / RAM 实验** | 支持最多 1 MiB 指令 ROM、1 MiB 数据 RAM；支持 Logisim HEX 及统一内存镜像导入 |
+| **真实 MMIO 显示** | 在 `0x20000000–0x2003FFFF` 地址区间支持 256 × 256 RGB888 显示设备，像素由实际执行的 32 位 SW 写入驱动 |
+| **本地项目管理** | 最多 10 个自定义实验项目；支持 IndexedDB 自动保存、JSON 备份与 HEX 导入导出 |
+
+### 11 个硬件探索模块
+
+```text
+PC ──────────────── Instruction Memory ─── Decoder
+│                                           │
+└── Next PC ◀── Branch Unit                ├── Imm Gen
+                      ▲                     │
+                      └── Register File ───┴── MUX ── ALU
+                              ▲                        │
+                              └────────── WB ◀─────────┤
+                                        ▲               │
+                                        └── Data Memory ┘
+```
+
+*上图为便于理解的模块关系概览，并非完整 RTL 网表或全部物理连线。*
+
+## 在线体验
+
+**[https://silicon-life.vercel.app/](https://silicon-life.vercel.app/)**
+
+建议在支持 WebGL 的桌面浏览器中体验完整三维效果：
+
+1. 在首页点击「进入芯片」，通过连续展开动画进入 CPU 工作台。
+2. 选择内置示例，或导入自己的 RV32I 机器码 / Logisim HEX 文件。
+3. 使用「单步指令」「运行」或「快速运行」观察程序执行及实时状态。
+4. 点击主板上的功能模块，进入内部探索；使用「返回主板」或 `Esc` 返回。
+5. 在工作台中添加 **MMIO Display** 外设，运行向显示地址写入像素的程序，观察真实帧缓冲。
+
+**使用提示：** 浏览器中的项目配置保存在本机 IndexedDB，不会自动同步到其他设备。请使用 JSON 导出重要项目。显示设备的 3D 挂载属于会话视觉状态，不代表运行时热拔插地址解映射。
+
+## 技术架构
+
+```text
+ROM / 自定义 RV32I 程序
+           │
+           ▼
+   TypeScript CPU Core
+     (RV32I · step)
+           │
+           ├──▶ CpuState ───▶ 寄存器 / RAM / MMIO 帧缓冲
+           │
+           └──▶ ExecutionTrace
+                       │
+                       ▼
+             数据通路与教学播放
+                       │
+                       ▼
+             React + Three.js / R3F
+             三维芯片 · 元件探索 · 信号高亮
+```
+
+**主要技术：** TypeScript、React 19、Vite 7、Three.js、React Three Fiber、Drei、Zustand、Motion；测试工具为 Vitest 与 Playwright。
+
+项目参考原有 RISC-V 单周期 CPU RTL 的模块划分和信号语义，**在浏览器中由 TypeScript CPU Core 执行指令**。原始 Verilog RTL 并未作为实时仿真引擎嵌入网页，也未声称完成 RTL 与软件模型的形式等价验证。
+
+五个教学观察阶段用于分解一次指令执行的因果关系，**不代表五级流水线，也不是五个实际时钟周期**。
+
+## 快速开始
+
+**环境要求：** Node.js 22.12+，npm，支持 WebGL 的现代浏览器。
+
+```bash
+git clone https://github.com/JouCristian/Silicon-Life.git
+cd Silicon-Life
 npm ci
 npm run dev
 ```
 
-打开终端地址，默认 http://127.0.0.1:5173。点击「进入芯片」或模型，选择教学程序，再点击「运行」。
+按终端输出访问本地开发地址（默认 `http://127.0.0.1:5173/`）。
 
-| 教学程序 | 真实执行结果 | 提交数 |
-| --- | --- | --- |
-| 第一次加法 | x1=5、x2=7、x3=12、PC=12 | 3 |
-| 内存读写 | M[64]=42、字节 `2a 00 00 00`、x3=42、PC=16 | 4 |
-| 条件分支 | BEQ 成立，跳过写入 99，x3=42、PC=20 | 4（程序 5 条） |
+如需构建静态生产资源：
 
-```asm
-# 内存读写
-addi x1, x0, 64
-addi x2, x0, 42
-sw   x2, 0(x1)
-lw   x3, 0(x1)
-
-# 条件分支
-addi x1, x0, 5
-addi x2, x0, 5
-beq  x1, x2, 8
-addi x3, x0, 99
-addi x3, x0, 42
-```
-
-## 操作与语义
-
-- 三个原有示例只读，点击「复制为我的项目」后编辑。编码器可选择全部 RV32I 操作，查看 I/R/S/B/U/J 型机器码；应用或切换项目会复位。
-- 寄存器可切有符号十进制 / 十六进制；复位后可设置 x1–x31。x0 恒为 0。
-- 数据内存可选 1 / 64 / 256 KiB / 1 MiB，小端，LW/SW 按 4 字节对齐访问。支持 8/32 位初始数据编辑、初始 / 运行视图、DEC/HEX 和相邻字节观察；Δ 标记运行期间的差异。复位恢复用户初始 RAM 与寄存器，独立修改 ROM 保留配置，切换项目恢复各自独立的配置。
-- 「单步指令」提交一个架构边沿，随后讲解同一快照。「暂停 / 暂停讲解」冻结播放，「继续讲解」继续快照，「回放」从取指重新观察。均不重复写回或存储。
-- 五个阶段是教学观察，**不是五个时钟周期或流水线**。脉冲时间依据示意线路长度安排，不代表真实门延迟。
-- 蓝色表示数据、浅金表示控制、青绿色表示写回；来源均为 Core 的 Trace。专业模式显示 RTL 原名信号。
-- 鼠标拖动、滚轮、右键分别旋转、缩放、平移；「恢复视角」连续回到教学位置。首页与工作台共享固定 Canvas，支持反向与中途反转。
-- 尊重 reduced-motion，也响应页面打开后偏好的改变；简化动画后仍可执行所有程序。
-- 本次执行预算可选 1000 / 10000 / 100000 / 1000000 步，到达预算暂停，可继续；「快速运行」分批执行并允许暂停。历史只保留最近 128 条。未对齐访存或成立分支的未对齐目标会停止，错误指令不部分提交。内存越界是宿主检查，不冒充 RTL Trap。
-
-## Sprint 02.1 工作台验收
-
-- 桌面宽 ≥1100px、高 ≥700px 时，Header / 主体 / Footer 组成 `100dvh` 工作台；程序、状态、中央下方讲解三个区域独立原生滚动，3D 区始终可见。空间不足时切换顺序布局，允许 document 滚动，所有内容仍可访问。
-- 拖动两条竖分隔线调整栏宽，拖动中间横分隔线调整 3D 与讲解高度。方向键微调，Shift 加速；双击或 Home 恢复该条分隔线。比例不跨会话保存，窗口变化时受最小尺寸约束。
-- 仅在真正的 3D 区域内滚轮缩放、拖动旋转/平移。侧栏、Trace 和 Header 不控制镜头；首页芯片仍可点击和旋转。所有尺寸变化保留同一 Canvas。
-- 先「单步指令」提交真实 CPU 状态，然后选择阶段并点击「单步传递」；每次传播一组真实 Trace 连接并停住。并行信号一起观察，空阶段跳过。完成提示后可回放、切换阶段或执行下一条。
-- 「暂停讲解 / 继续讲解」冻结或恢复当前事件；「回放」重置为整条指令的自动讲解。阶段切换重置传递游标。以上操作不会增加 retired，也不会再次写寄存器、PC 或内存。
-- 「传播速率」默认 0.50×，支持 0.25 / 0.50 / 0.75 / 1.00 / 1.50 / 2.00×。中途修改不重置逻辑时间；不改变 Core 结果。减弱动态效果使用简化端点，保留操作与完成反馈。
-
-## Sprint 03.1 操作与验收
-
-1. 在「当前项目」直接新建、复制、重命名或删除。最多 10 个自定义项目，不计三个内置只读示例。删除需确认。每个项目独立保存 ROM、初始 RAM、32 个初始寄存器、RAM 容量和版本 / 时间信息。
-2. 修改配置后显示「正在保存…」，只有 IndexedDB 事务成功后才显示「已保存到本机」。刷新恢复项目列表和最近选择，CPU 从初始配置重启，不恢复运行状态或 Trace。关闭前等待保存完成；失败 / 未完成时离开会提示，失败项目仍可导出 JSON。
-3. 「项目 JSON 备份」导出完整项目，重新导入会创建独立副本，避免覆盖现有项目。**浏览器本地保存不是云同步**，不同设备、不同域名之间不会同步，清理网站数据可能删除项目。请定期备份。
-4. ROM 最多 **262144 个 32 位字 / 1 MiB**，按实际长度分配，列表每页 16 条；支持按十进制 / `0x` PC 地址跳转，机器码地址 +4。排序不会自动修改分支/跳转偏移，目标提示需要检查。✓ 标记最近保留的执行记录。HEX 加载成功不代表当前运行环境可完整执行文件（扩展指令、其他 MMIO、OS 未实现）。
-5. ROM 文件通过「导入 ROM」打开，选择文件 → Worker 解析 → 预览 → 确认替换或追加。默认保留所有合法 unsigned32 原始字，未知指令明确标注，运行到它时按 PC / 机器码安全停止。可勾选严格模式拒绝未支持指令。格式错误或超限不替换原项目。
-6. RAM 明确分为「初始 RAM · 配置」和「运行 RAM · 只读」。初始模式支持 8/32 位编辑、地址跳转、HEX 导入导出、容量调整和确认清空。执行后先复位再配置；缩小容量需确认。运行模式只读，Δ、字节排列与最近写入地址帮助观察，Reset 恢复初始数据。
-7. 「运行」逐条讲解；「快速运行」跳过逐条动画，批次最多 512 条 / 约 8ms，逐帧让出主线程。两者使用同一 Core.step，只有提交产生状态，回放不重复执行。预算用尽保留 ready 状态，允许用户继续。
-
-[arithmetic.hex](examples/arithmetic.hex) 导入 ROM 后得到 x3=12。导入 [memory-init.hex](examples/memory-init.hex) 时，RAM 选择 **32-bit、起始字节地址 0**，再创建一条 `lw x3, 64(x0)`（`04002183`），得到 x3=42。详细格式见 [HEX_FORMAT](docs/HEX_FORMAT.md)，存储和容量设计见 [ARCHITECTURE](docs/ARCHITECTURE.md)，性能实测见 [VALIDATION](docs/VALIDATION.md)。
-
-程序与静态数据共用一个 Logisim 镜像时，在「ROM HEX 导入 / 导出 → 装载方式」选择「统一内存镜像导入（Logisim 兼容）」，再选 HEX 并确认。一次性替换 ROM 和初始 RAM（自动设为 1 MiB），32 位字地址乘 4 映射到 CPU 字节地址；保留初始寄存器并复位执行。运行 RAM 的写入不会改写 ROM。ARTEMIS 原样本完整加载 142272 字，栈 `0x93000` 可读写。Sprint 05.5 新增独立 Logisim RGB 显示设备：`0x20000000…0x2003ffff`，256×256、00RRGGBB，SW 写入立即更新像素。在「快速运行」中选择 1,000,000 步预算，可运行至完整图像；程序随后进入自身 halt 循环，可暂停。详见 [显示设备协议与实测](docs/MMIO_DISPLAY.md)。
-
-ROM / RAM 共用自定义文件按钮，文件名单独省略显示并可悬停查看完整名称，支持重新选择同名文件。所有解析只在本机进行，无后端。React Bits 保持 Sprint 03 的集成；V3 只升级 3D 场景视觉，不改动其语义与 Canvas 生命周期。[来源与许可证](docs/THIRD_PARTY.md)。MMIO 当前仅实现 Logisim RGB 显示器的 SW 协议。
-
-## 验证与构建
-
-```sh
-npm run typecheck
-npm test
+```bash
 npm run build
-npx playwright install chromium
-npm run test:e2e
 npm run preview
 ```
 
-本机浏览器安装在项目内，验收前使用：
+生产构建输出在 `dist/`，适用于 Vercel 等静态站点托管平台。
 
-```powershell
-$env:PLAYWRIGHT_BROWSERS_PATH = "$PWD/.local/browsers"
-npm run test:e2e
+## 工程结构
+
+```text
+src/
+├── core/            # RV32I 指令执行、存储器、设备与 Trace
+├── scenes/          # 三维芯片、主板、模块内部探索
+├── components/      # 工作台、寄存器、ROM/RAM、信号界面
+├── motion/          # 镜头、动画和信号传播时间线
+├── io/              # HEX、程序导入导出
+├── projects/        # 本地项目存储与备份
+└── tests/           # 单元与集成测试
+docs/                # 架构、协议、设计及开发记录
+examples/            # 示例机器码 / HEX
+e2e/                 # 浏览器端验证
 ```
 
-E2E 保存首帧、中段、结束、反向截图及逐帧 JSON 到 `.local/`。帧检查验证连续性和状态边界，不能替代真实设备的视觉与性能评审。完整记录见 [VALIDATION](docs/VALIDATION.md)。
+进一步阅读：
 
-生产输出为 `dist/`，可部署到 Vercel 静态托管或 Linux Nginx。默认域名根路径；子路径托管需配置 Vite `base`。本轮没有推送或运行远程 CI，本地通过不代表远程 Actions 已通过。
+- [RTL 与 Web 信号映射](docs/RTL_MAPPING.md) · [RV32I 指令实现](docs/SPRINT_05_RV32I.md)
+- [11 个模块探索说明](docs/SPRINT_07_EXPLORATION.md) · [MMIO 显示设备协议](docs/MMIO_DISPLAY.md)
+- [HEX 文件格式](docs/HEX_FORMAT.md) · [系统架构](docs/ARCHITECTURE.md)
+- [AI 使用记录](docs/AI_USAGE_LOG.md) · [第三方资源与许可](docs/THIRD_PARTY.md)
 
-## 工程边界
+## 团队与创作说明
 
-CPU Core 无框架依赖；`src/io/` 提供程序 / HEX / 初始 RAM 纯函数；Store 原子协调初始配置、提交和播放；`src/motion/` 统一时间、弹簧、传播调度；场景拓扑在 `src/scenes/topology.ts`。协作见 [AGENTS](AGENTS.md)、[V0_COLLAB](docs/V0_COLLAB.md)，信号依据见 [RTL_MAPPING](docs/RTL_MAPPING.md)，贡献见 [AI_USAGE_LOG](docs/AI_USAGE_LOG.md)。
+| 项目 | 信息 |
+| --- | --- |
+| 参赛作品 | **《芯生》——让每一条指令，都有迹可循** |
+| 作品编号 | **456579** |
+| 参赛学校 | 西南科技大学 |
+| 团队成员 | 邹俊毅、陆惠彤、王明霞、汪昊、宗杰 |
+| 指导教师 | 苏波 |
+| 学习交流 | SWUST-OC · 一生一芯学习小组 |
 
-`rtl/`、`package/` 保持只读且不进入 Web 仓库。RTL 已覆盖 RV32I，本轮语法编译通过，但无 Testbench 联合仿真，不能声称外部 FPGA 等价。无 CSR、特权系统、其他 MMIO、OS 或扩展 ISA。没有后端、云同步、流水线和聊天系统；本地持久化只保存项目配置。Three 共享包仍较大，构建会提示体积警告。
+本项目由团队提出创意方向、确定软硬件教学目标、提供 RTL 参考和测试素材，并参与交互设计、功能验证与人工验收。开发过程中使用 **ChatGPT** 辅助方案整理与内容表达、**Codex** 辅助工程实现与集成、**DeepSeek** 辅助三维视觉设计与交互迭代。AI 工具作为创作与工程辅助，不代替真实程序的执行结果；详细过程见 [AI 使用记录](docs/AI_USAGE_LOG.md)。
 
-如本机镜像缓存冲突，可用 `npm ci --registry=https://registry.npmjs.org --cache .local/npm-cache`，无需修改全局配置。
+## 当前边界与版权说明
+
+- 当前为 **2026 竞赛交付冻结版本**；不包含操作系统、CSR / 特权系统、扩展 ISA 或通用外设全集。
+- MMIO 目前实现已验证的 RGB 显示写入协议，不提供通用 UART、键盘等外设功能；大型外部镜像需自行导入。
+- 本仓库目前**未设置项目级开源许可证**；公开可查看不等于自动授予复制、修改或再分发许可。第三方组件遵循其各自许可证，详见 [THIRD_PARTY](docs/THIRD_PARTY.md)。
+
+---
+
+<div align="center">
+
+**芯生 · Silicon Life**
+
+*让每一条指令，都有迹可循。*
+
+[在线体验](https://silicon-life.vercel.app/) · [GitHub 仓库](https://github.com/JouCristian/Silicon-Life)
+
+</div>

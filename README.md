@@ -1,5 +1,7 @@
 # 芯生 / Silicon Life
 
+Sprint 06：工作台点击 PC、Register File、ALU 本体或右侧「元件内部探索」按钮，可推进查看 RTL 功能结构和真实 Trace 信号；「返回主板」/ Esc 平滑返回。进入时暂停执行，内部可继续单步；与 MMIO 显示器聚焦互斥，保留单 Canvas。当前是功能层级示意，非门级物理布局。操作与扩展接口见 [元件探索说明](docs/SPRINT_06_EXPLORATION.md)。
+
 DeepSeek V3 芯片视觉已在本分支完成：完整封装、电影化解构与可读的教学电路板共用既有单 CPU Canvas、连续转场和真实教学数据通路。实现、截图与验证见 [CHIP_V3_VISUAL](docs/CHIP_V3_VISUAL.md)；V2 集成记录见 [CHIP_V2_INTEGRATION](docs/CHIP_V2_INTEGRATION.md)。原型目录为冻结参考，其 UI、DemoModules 和相机控制不进入正式场景。
 
 基于真实 RV32I 单周期架构的三维交互教学网站。Sprint 05 支持 **40 条 RV32I 基础整数指令**（FENCE 为有序屏障空操作，ECALL/EBREAK 为非退休 Trap 停止），最多 10 个本地项目、按需分配的最多 262144 字 / 1 MiB ROM、1/64/256 KiB 或 1 MiB RAM、IndexedDB 自动保存和 JSON / HEX 备份、RTL 对应的软件信号快照和连续可逆的芯片展开。指令表和三个小程序见 [Sprint 05](docs/SPRINT_05_RV32I.md)。

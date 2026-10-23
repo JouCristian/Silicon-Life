@@ -20,6 +20,10 @@ import { TeachingBoard } from './teaching/TeachingBoard'
 import { PeripheralDisplay } from './PeripheralDisplay'
 import { ALU_LABELS } from '../core/cpu'
 import { usePeripheralStore } from '../stores/usePeripheralStore'
+import { useExplorationStore } from '../stores/useExplorationStore'
+import { type ExplorerId } from './exploration/model'
+import { ModuleInterior } from './exploration/ModuleInterior'
+import { explorationDistance } from './exploration/camera'
 
 type Anchor = RefObject<HTMLDivElement | null>
 const SPRING = (): SpringState => ({ position: 0, velocity: 0 })
@@ -53,6 +57,17 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
   const peripheralInstalled = usePeripheralStore(state => state.installed.includes('display'))
   const focusedPeripheral = usePeripheralStore(state => state.focused)
   const focusPeripheral = usePeripheralStore(state => state.focus)
+  const explored = useExplorationStore(state => state.selected)
+  const explore = useExplorationStore(state => state.enter)
+  const exitExploration = useExplorationStore(state => state.exit)
+  const [interiorId, setInteriorId] = useState<ExplorerId | null>(null)
+  const interiorProgress = useRef(SPRING())
+  const interiorAnchor = useRef<Group>(null)
+  const returnEye = useMemo(() => new Vector3(), [])
+  const returnTarget = useMemo(() => new Vector3(), [])
+  const interiorTarget = useMemo(() => new Vector3(), [])
+  const interiorEye = useMemo(() => new Vector3(), [])
+  const lastCameraOwner = useRef<'display' | 'module' | null>(null)
   const reduced = useMotionPreference()
   const { camera, size, gl } = useThree()
   const softwareRenderer = useMemo(() => isSoftwareRenderer(gl), [gl])
@@ -118,6 +133,18 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
   useEffect(() => {
     if (!open && focusedPeripheral) focusPeripheral(null)
   }, [open, focusedPeripheral, focusPeripheral])
+  useLayoutEffect(() => {
+    if (!explored) return
+    if (interiorProgress.current.position < .001) {
+      returnEye.copy(lastCameraOwner.current === 'display' ? cameraPlane : camera.position)
+      returnTarget.copy(lastCameraOwner.current === 'display' ? origin : controls.current?.target ?? origin)
+    }
+    setInteriorId(explored)
+  }, [explored, camera, cameraPlane, origin, returnEye, returnTarget])
+  useEffect(() => {
+    exitExploration()
+    returnEye.copy(cameraPlane); returnTarget.copy(origin)
+  }, [scene, viewVersion, exitExploration, cameraPlane, origin, returnEye, returnTarget])
 
   useFrame(({ clock }, dt) => {
     // The first render delta may include a long frame BEFORE the new target was
@@ -167,7 +194,16 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
       }
     }
     const t = tState.position
+    const interior = interiorProgress.current
+    if (reduced) { interior.position = open && explored ? 1 : 0; interior.velocity = 0 }
+    else springStep(interior, open && explored ? 1 : 0, dt, 7)
+    const interiorVisible = interiorId && interior.position > .001
+    labelHost.dataset.exploring = interiorVisible ? interiorId : ''
+    labelHost.parentElement!.dataset.exploring = explored ?? ''
+    labelHost.parentElement!.dataset.exploreProgress = interior.position.toFixed(4)
     const displayFocus = open && peripheralInstalled && focusedPeripheral === 'display' && displayAnchor.current
+    if (!open) lastCameraOwner.current = null
+    if (controls.current) controls.current.enabled = !displayFocus && !explored && !interiorVisible && lastCameraOwner.current !== 'module'
     if (displayFocus) {
       displayAnchor.current!.getWorldPosition(focusTarget)
       cameraPoint.copy(focusTarget).add(focusEye)
@@ -176,6 +212,26 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
       controls.current?.target.lerp(focusTarget, follow)
       controls.current?.update()
       autoView.current = false
+      lastCameraOwner.current = 'display'
+    } else if (open && (interiorVisible || explored)) {
+      interiorAnchor.current?.getWorldPosition(interiorTarget)
+      const distance = explorationDistance(scale.current.position, anchor.current.width, anchor.current.height, size.height)
+      interiorEye.copy(interiorTarget)
+      interiorEye.y -= distance * .14; interiorEye.z += distance
+      const blend = clamp01(interior.position), follow = reduced ? 1 : 1 - Math.exp(-CAMERA_RESPONSE * dt)
+      cameraPoint.copy(returnEye).lerp(interiorEye, blend)
+      focusTarget.copy(returnTarget).lerp(interiorTarget, blend)
+      camera.position.lerp(cameraPoint, follow)
+      controls.current?.target.lerp(focusTarget, follow)
+      controls.current?.update()
+      autoView.current = false
+      lastCameraOwner.current = 'module'
+    } else if (open && lastCameraOwner.current === 'module') {
+      const follow = reduced ? 1 : 1 - Math.exp(-CAMERA_RESPONSE * dt)
+      camera.position.lerp(returnEye, follow)
+      controls.current?.target.lerp(returnTarget, follow)
+      controls.current?.update()
+      if (camera.position.distanceTo(returnEye) < .003 && (controls.current?.target.distanceTo(returnTarget) ?? 0) < .003) lastCameraOwner.current = null
     } else if (autoView.current) {
       // The camera target travels on a later, gently overshooting Bezier path;
       // the camera itself still follows with frame-rate-independent damping.
@@ -188,7 +244,7 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
       camera.position.lerp(cameraPoint, follow)
       controls.current?.target.lerp(origin, follow)
       controls.current?.update()
-      if (t >= .9999 && camera.position.distanceTo(cameraPlane) < .003 && (controls.current?.target.length() ?? 0) < .001) autoView.current = false
+      if (t >= .9999 && camera.position.distanceTo(cameraPlane) < .003 && (controls.current?.target.length() ?? 0) < .001) { autoView.current = false; lastCameraOwner.current = null }
     }
     camera.updateMatrixWorld()
     const distance = cameraHome.length() * (1 - t) + cameraPlane.length() * t
@@ -301,7 +357,8 @@ function World({ labelHost, anchorRef }: { labelHost: HTMLDivElement; anchorRef:
       <group ref={board}>
         <TeachingBoard />
         {WIRES.map(wire => <SignalFlow key={wire.id} wire={wire} transfer={timeline.transfers.find(t => t.id === wire.id)} timeline={timeline} epoch={playbackEpoch} inspection={inspection} reduced={reduced} />)}
-        {MODULES.map((module, i) => <group key={module.id} ref={el => { blocks.current[i] = el }}><ModuleBlock module={module} labelHost={labelHost} value={valueFor(module.id)} reveal={reveal.current} timeline={timeline} epoch={playbackEpoch} inspection={inspection} reduced={reduced} open={open} /></group>)}
+        {MODULES.map((module, i) => <group key={module.id} ref={el => { blocks.current[i] = el }}><ModuleBlock module={module} labelHost={labelHost} value={valueFor(module.id)} reveal={reveal.current} timeline={timeline} epoch={playbackEpoch} inspection={inspection} reduced={reduced} open={open} exploration={interiorId === module.id ? interiorProgress.current : undefined} onExplore={() => explore(module.id)} /></group>)}
+        {interiorId && <ModuleInterior id={interiorId} progress={interiorProgress.current} labelHost={labelHost} anchor={interiorAnchor} />}
         <PeripheralDisplay screenAnchor={displayAnchor} />
       </group>
       <group onClick={event => { event.stopPropagation(); if (!open && event.delta <= 4) enter() }} onPointerOver={() => { if (!open) document.body.style.cursor = 'pointer' }} onPointerOut={() => { document.body.style.cursor = '' }}>

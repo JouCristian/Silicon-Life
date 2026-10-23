@@ -8,6 +8,7 @@ import { ProgramPanel } from './components/ProgramPanel'
 import { RegisterPanel } from './components/RegisterPanel'
 import { MemoryPanel } from './components/MemoryPanel'
 import { DisplayPanel } from './components/DisplayPanel'
+import { ModuleExplorerPanel, ExplorerBackButton } from './components/ModuleExplorerPanel'
 import { TracePanel } from './components/TracePanel'
 import { useLabView } from './stores/useLabStore'
 import { ScenePresence } from './components/ScenePresence'
@@ -94,7 +95,7 @@ export default function App() {
       <WorkbenchLayout open={open} program={<AnimatePresence>{open && <ScenePresence key="program" id="program-region" label="程序与指令编辑" as="aside" className="program-panel panel-scroll" delay={MOTION.ui.stagger * 2}>
           <PanelEdgeBlur position="top" /><ProgramPanel /><PanelEdgeBlur position="bottom" />
         </ScenePresence>}</AnimatePresence>} scene={<>
-          <AnimatePresence>{open && <ScenePresence key="toolbar" className="scene-toolbar" delay={MOTION.ui.stagger * 3}><span><span className="tiny-dot" />Teaching plane <small>2.5D</small></span><span className="scene-toolbar-actions"><PeripheralDock /><button className="text-button" onClick={resetView}>↺ 恢复视角</button></span></ScenePresence>}</AnimatePresence>
+          <AnimatePresence>{open && <ScenePresence key="toolbar" className="scene-toolbar" delay={MOTION.ui.stagger * 3}><span><span className="tiny-dot" />Teaching plane <small>2.5D</small></span><span className="scene-toolbar-actions"><ExplorerBackButton /><PeripheralDock /><button className="text-button" onClick={resetView}>↺ 恢复视角</button></span></ScenePresence>}</AnimatePresence>
           <div ref={anchorRef} className="scene-viewport" data-testid="scene-anchor" aria-label={open ? 'CPU 三维交互区域' : '芯片三维交互区域'} />
           <div className="scene-bottom"><span>拖拽旋转 <span className="separator">·</span> 滚轮缩放 <span className="separator">·</span> 右键平移</span>{open && <span className="scene-legend" aria-label="信号语义图例"><i />数据<i className="control" />控制<i className="writeback" />写回</span>}</div>
           </>} details={<><PanelEdgeBlur position="top" /><AnimatePresence>{open && <ScenePresence key="controls" className="execution-presence" delay={MOTION.ui.stagger * 3}>
@@ -110,7 +111,7 @@ export default function App() {
             <div className="execution-status" role="status"><span className={`status-dot ${cpu.status === 'fault' ? 'fault' : ''}`} />{status}<span className="status-detail">{cpu.reason ?? (current !== undefined ? `下一条：${instructionRow(program, cpu.pc / 4).assembly}` : '')}</span></div>
           </ScenePresence>}</AnimatePresence>
           <AnimatePresence>{open && <ScenePresence key="trace" className="trace-presence" delay={MOTION.ui.stagger * 4}><TracePanel /></ScenePresence>}</AnimatePresence></>}
-        state={<AnimatePresence>{open && <ScenePresence key="state" id="state-region" label="寄存器与数据内存" as="aside" className="state-panel panel-scroll" delay={MOTION.ui.stagger * 3}><PanelEdgeBlur position="top" /><DisplayPanel /><RegisterPanel /><MemoryPanel /><PanelEdgeBlur position="bottom" /></ScenePresence>}</AnimatePresence>} />
+        state={<AnimatePresence>{open && <ScenePresence key="state" id="state-region" label="寄存器与数据内存" as="aside" className="state-panel panel-scroll" delay={MOTION.ui.stagger * 3}><PanelEdgeBlur position="top" /><ModuleExplorerPanel /><DisplayPanel /><RegisterPanel /><MemoryPanel /><PanelEdgeBlur position="bottom" /></ScenePresence>}</AnimatePresence>} />
     </main>
 
     <footer className="app-footer"><span>SWUST-OC 一生一芯学习小组</span><span>{open ? '真实执行 · 快照驱动可视化' : 'Cinematic Reveal + Teaching Plane'}</span><span>Sprint 03.1 <span className="separator">/</span> 2026</span></footer>

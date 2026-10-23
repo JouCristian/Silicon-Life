@@ -8,6 +8,7 @@ import { MOTION, smoothstep, type SpringState } from '../motion/design'
 import { presentationClock, type Timeline } from '../motion/timeline'
 import { createModuleFaceTexture } from './teaching/moduleTextures'
 import { MODULES } from './topology'
+import { isExplorable } from './exploration/model'
 
 const BASE = new Color('#162630')
 const FACE_BASE = new Color('#c2d7e0')
@@ -26,9 +27,10 @@ const LABEL_OFFSET: Partial<Record<ModuleId, [number, number, number]>> = {
   regfile: [.42, .02, .5],
 }
 
-export function ModuleBlock({ module, labelHost, value, reveal, timeline, epoch, inspection, reduced, open }: {
+export function ModuleBlock({ module, labelHost, value, reveal, timeline, epoch, inspection, reduced, open, exploration, onExplore }: {
   module: typeof MODULES[number]; labelHost: HTMLDivElement; value: string; reveal: SpringState; timeline: Timeline;
   epoch: number; inspection: boolean; reduced: boolean; open: boolean
+  exploration?: SpringState; onExplore?: () => void
 }) {
   const material = useRef<MeshPhysicalMaterial>(null)
   const faceMaterial = useRef<MeshBasicMaterial>(null)
@@ -62,8 +64,13 @@ export function ModuleBlock({ module, labelHost, value, reveal, timeline, epoch,
       statusMaterial.current.opacity = active ? .62 + response * .35 + emission * .24 : .42
     }
     if (body.current) {
-      body.current.position.z = reduced ? 0 : response * .06
+      const inside = Math.max(0, Math.min(1, exploration?.position ?? 0))
+      body.current.visible = inside < .995
+      body.current.position.z = (reduced ? 0 : response * .06) + inside * .8
       body.current.scale.setScalar(reduced ? 1 : 1 + response * .014)
+      if (material.current) { material.current.transparent = !!exploration; material.current.opacity = 1 - inside }
+      if (faceMaterial.current) faceMaterial.current.opacity = .92 * (1 - inside)
+      if (statusMaterial.current) statusMaterial.current.opacity *= 1 - inside
     }
     if (label.current) {
       label.current.style.opacity = String(smoothstep(.58, .94, reveal.position))
@@ -73,7 +80,9 @@ export function ModuleBlock({ module, labelHost, value, reveal, timeline, epoch,
     }
   })
   return <>
-    <group ref={body}>
+    <group ref={body} onClick={event => { if (open && reveal.position > .95 && event.delta <= 4 && isExplorable(module.id)) { event.stopPropagation(); onExplore?.() } }}
+      onPointerOver={event => { if (open && reveal.position > .95 && isExplorable(module.id)) { event.stopPropagation(); document.body.style.cursor = 'pointer' } }}
+      onPointerOut={() => { document.body.style.cursor = '' }}>
       <mesh geometry={geometry} dispose={null}>
         <meshPhysicalMaterial ref={material} color="#162630" metalness={.48} roughness={.4} clearcoat={.55} clearcoatRoughness={.3} envMapIntensity={1.05} />
         <Edges color="#9bb5c3" threshold={38} />

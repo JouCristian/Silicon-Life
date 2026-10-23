@@ -1,5 +1,11 @@
 # RTL → Web 映射
 
+## Sprint 06 · 元件内部探索
+
+只读核对 pc.v、regfile.v、alu.v、cpu_defs.vh 与 cpu_top.v。内部图的数值来自现有 ExecutionTrace / CpuState：PC 的 D/Q/提交后 Q、寄存器堆 32 格与双读单写、ALU 的 a/b/op/result 与十个 RTL case。PC 的分支/跳转选择仍明确属于 cpu_top 外部上下文，ALU case 图不冒充综合后的门级/并行硬件。无 Trace 时不编造控制或运算结果。
+
+此轮只有只读展示与会话镜头状态，无新 RTL 信号、无 CPU/Trace 执行语义修改或 RTL 联合仿真结论。完整边界与扩展接口见 [SPRINT_06_EXPLORATION](SPRINT_06_EXPLORATION.md)。
+
 ## Sprint 05.5 · 显示 MMIO
 
 新增宿主 Logisim RGB 设备：`0x20000000…0x2003ffff`、256×256、低 24 位 RGB888、对齐 SW 写像素即更新。依据为用户原 `minirv.circ` 的 LSU 比较器、VGA_WE 门控、X/Y/Data 分线器及 RGB Video 组件，并以原反汇编和 ARTEMIS 实际访问验证；完整证据与限制见 [MMIO_DISPLAY](MMIO_DISPLAY.md)。

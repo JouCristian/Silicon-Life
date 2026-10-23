@@ -1,0 +1,14 @@
+.module-explorer { padding-bottom: 18px; margin-bottom: 18px; border-bottom: 1px solid var(--line); }
+.explorer-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.explorer-tabs [aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.explorer-values { margin: 10px 0; display: grid; gap: 8px; font-size: 11px; }
+.explorer-values > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px; border-bottom: 1px solid var(--line); padding-bottom: 5px; }
+.explorer-values dt { color: var(--muted); }
+.explorer-values dd { margin: 0; overflow-wrap: anywhere; font-family: ui-monospace, monospace; }
+.explorer-values [data-active="true"] dd { color: var(--accent); }
+.explore-node-label { width: max-content; max-width: 170px; text-align: center; color: #e5edf4; pointer-events: none; opacity: 0; font: 10px/1.45 ui-monospace, monospace; }
+.explore-node-label b { display: block; font-size: 11px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+.explore-node-label code { display: block; white-space: pre-line; }
+.explore-node-label.is-register { font-size: 9px; }
+.exploration-toolbar { display: flex; gap: 12px; align-items: center; }
+.scene-label-host[data-exploring]:not([data-exploring=""]) .module-label { visibility: hidden; }

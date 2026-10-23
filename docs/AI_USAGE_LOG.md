@@ -1,5 +1,12 @@
 # AI 使用记录
 
+## 2026-10-23 · Sprint 06 元件内部探索
+
+- 确认 MMIO 3D 视觉 `674677f` 已提交、工作区干净，从该提交新建 `feat/sprint-06-module-exploration`，保留既有历史和功能。
+- 读取实际 PC / RF / ALU / cpu_top / 控制宏，复用 Trace 创建纯只读内部模型与可扩展注册表。内部示意不冒充门级布局，不将 PC 外部分支逻辑伪称内部；CPU Core、拓扑与 MMIO 执行语义未改。
+- 使用本地 impeccable 的 product 指导和既有设计变量，仅实现基础可用的剖面、信号文字、返回/Esc、减弱动画和 MMIO 聚焦互斥；未进行视觉重设计或新建 Canvas/OrbitControls。
+- 类型检查及 4 个相关文件 183 项测试通过，进行本地 Chrome 基础预览；未运行完整 E2E。没有 Push、Merge 或部署。
+
 ## 2026-10-23 · Sprint 05.5 显示设备
 
 - 先本地提交已验收的统一镜像功能为 `b85419b`，新建 `feat/sprint-05-5-mmio-display`。
